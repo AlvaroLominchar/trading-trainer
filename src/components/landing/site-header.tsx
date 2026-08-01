@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function SiteHeader() {
   return (
     <header className="site-header">
@@ -14,13 +16,13 @@ export function SiteHeader() {
         </nav>
 
         <div className="header-actions">
-          <a className="button button-ghost header-login" href="#planes">
+          <Link className="button button-ghost header-login" href="/login">
             Acceder
-          </a>
+          </Link>
 
-          <a className="button button-light button-small" href="#planes">
+          <Link className="button button-light button-small" href="/login">
             Empezar
-          </a>
+          </Link>
         </div>
       </div>
     </header>

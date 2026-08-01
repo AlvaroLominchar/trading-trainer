@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function PricingSection() {
   return (
     <section className="section section-pricing" id="planes">
@@ -32,9 +34,9 @@ export function PricingSection() {
               <li>Funcionalidades básicas</li>
             </ul>
 
-            <button className="button button-outline-full" type="button">
+            <Link className="button button-outline-full" href="/login">
               Crear cuenta
-            </button>
+            </Link>
           </article>
 
           <article className="pricing-card pricing-card-featured">
@@ -59,9 +61,9 @@ export function PricingSection() {
               <li>Mayor capacidad de uso</li>
             </ul>
 
-            <button className="button button-light-full" type="button">
+            <Link className="button button-light-full" href="/login">
               Empezar con Pro
-            </button>
+            </Link>
           </article>
         </div>
       </div>
