@@ -1,11 +1,39 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { UserAvatar } from "@/components/app/user-avatar";
+import { getUserProfile } from "@/lib/auth/user-profile";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Configuración",
-  description: "Configuración provisional de la cuenta.",
+  description: "Configuración de la cuenta.",
 };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const profile = getUserProfile(user);
+
+  const provider =
+    user.app_metadata.provider === "google"
+      ? "Google"
+      : user.app_metadata.provider ?? "Desconocido";
+
+  const infrastructure = [
+    ["Autenticación", "Conectada"],
+    ["PostgreSQL", "Proyecto creado"],
+    ["Stripe", "Pendiente"],
+  ];
+
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <header>
@@ -18,18 +46,39 @@ export default function SettingsPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
-          Estos datos son provisionales. Más adelante procederán del usuario
-          autenticado en Supabase.
+          Estos datos proceden actualmente de tu cuenta autenticada con Google.
         </p>
       </header>
 
       <div className="mt-10 space-y-4">
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
-          <div className="border-b border-white/[0.07] pb-6">
-            <h2 className="text-lg font-medium">Perfil</h2>
-            <p className="mt-2 text-sm text-neutral-600">
-              Información visible dentro de la aplicación.
-            </p>
+          <div className="flex flex-col justify-between gap-6 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-lg font-medium">Perfil</h2>
+
+              <p className="mt-2 text-sm text-neutral-600">
+                Información recibida del proveedor de autenticación.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <UserAvatar
+                alt={`Avatar de ${profile.displayName}`}
+                avatarUrl={profile.avatarUrl}
+                initial={profile.initial}
+                size={52}
+              />
+
+              <div>
+                <span className="block text-sm font-medium text-neutral-200">
+                  {profile.displayName}
+                </span>
+
+                <span className="mt-1 block text-xs text-neutral-600">
+                  Acceso mediante {provider}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="mt-7 grid gap-6 sm:grid-cols-2">
@@ -42,7 +91,7 @@ export default function SettingsPage() {
                 className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-neutral-300 outline-none"
                 readOnly
                 type="text"
-                value="Álvaro"
+                value={profile.displayName}
               />
             </label>
 
@@ -55,19 +104,15 @@ export default function SettingsPage() {
                 className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-neutral-500 outline-none"
                 readOnly
                 type="email"
-                value="usuario@ejemplo.com"
+                value={profile.email}
               />
             </label>
           </div>
 
-          <button
-            className="mt-7 min-h-11 cursor-not-allowed rounded-xl bg-white px-5 text-sm font-semibold text-black opacity-50"
-            disabled
-            title="Estará disponible después de conectar la base de datos"
-            type="button"
-          >
-            Guardar cambios
-          </button>
+          <p className="mt-6 text-xs leading-5 text-neutral-600">
+            Más adelante guardaremos un perfil editable en PostgreSQL sin
+            modificar los datos originales de Google.
+          </p>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
@@ -97,14 +142,12 @@ export default function SettingsPage() {
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
-          <h2 className="text-lg font-medium">Estado de la infraestructura</h2>
+          <h2 className="text-lg font-medium">
+            Estado de la infraestructura
+          </h2>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {[
-              ["Autenticación", "Pendiente"],
-              ["Base de datos", "Pendiente"],
-              ["Stripe", "Pendiente"],
-            ].map(([service, status]) => (
+            {infrastructure.map(([service, status]) => (
               <div
                 className="rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-4"
                 key={service}
@@ -114,7 +157,14 @@ export default function SettingsPage() {
                 </span>
 
                 <span className="mt-3 flex items-center gap-2 text-sm text-neutral-300">
-                  <span className="size-1.5 rounded-full bg-neutral-600" />
+                  <span
+                    className={`size-1.5 rounded-full ${
+                      status === "Pendiente"
+                        ? "bg-neutral-600"
+                        : "bg-white"
+                    }`}
+                  />
+
                   {status}
                 </span>
               </div>

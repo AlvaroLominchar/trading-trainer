@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { UserAvatar } from "@/components/app/user-avatar";
+import { getUserProfile } from "@/lib/auth/user-profile";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -41,7 +46,19 @@ const recentProjects = [
   },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const profile = getUserProfile(user);
+
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <header className="flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
@@ -51,26 +68,51 @@ export default function DashboardPage() {
           </span>
 
           <h1 className="mt-3 text-3xl font-medium tracking-[-0.045em] sm:text-4xl">
-            Buenas tardes, Álvaro
+            Hola, {profile.firstName}
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-neutral-500">
-            Este es el panel provisional de la plantilla.
+            Tu cuenta está autenticada y preparada para seguir construyendo.
           </p>
         </div>
 
-        <button
-          className="min-h-11 cursor-not-allowed rounded-xl bg-white px-5 text-sm font-semibold text-black opacity-50"
-          disabled
-          title="Esta función se añadirá más adelante"
-          type="button"
-        >
-          Nuevo proyecto
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-3 sm:flex">
+            <UserAvatar
+              alt={`Avatar de ${profile.displayName}`}
+              avatarUrl={profile.avatarUrl}
+              initial={profile.initial}
+              size={42}
+            />
+
+            <div className="max-w-48">
+              <span className="block truncate text-sm text-neutral-300">
+                {profile.displayName}
+              </span>
+
+              <span className="mt-1 block truncate text-xs text-neutral-600">
+                {profile.email}
+              </span>
+            </div>
+          </div>
+
+          <button
+            className="min-h-11 cursor-not-allowed rounded-xl bg-white px-5 text-sm font-semibold text-black opacity-50"
+            disabled
+            title="Esta función se añadirá más adelante"
+            type="button"
+          >
+            Nuevo proyecto
+          </button>
+        </div>
       </header>
 
+      <div className="mt-8 inline-flex rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-neutral-600">
+        Métricas de demostración
+      </div>
+
       <section
-        className="mt-10 grid gap-3 md:grid-cols-3"
+        className="mt-4 grid gap-3 md:grid-cols-3"
         aria-label="Resumen de métricas"
       >
         {metrics.map((metric) => (

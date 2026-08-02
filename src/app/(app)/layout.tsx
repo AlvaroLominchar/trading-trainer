@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { UserAvatar } from "@/components/app/user-avatar";
+import { getUserProfile } from "@/lib/auth/user-profile";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -25,6 +27,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   if (!user) {
     redirect("/login");
   }
+
+  const profile = getUserProfile(user);
 
   return (
     <div className="min-h-screen bg-[#070707] text-white">
@@ -69,7 +73,28 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           </nav>
 
           <div className="mt-auto">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <UserAvatar
+                  alt={`Avatar de ${profile.displayName}`}
+                  avatarUrl={profile.avatarUrl}
+                  initial={profile.initial}
+                  size={40}
+                />
+
+                <div className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-neutral-200">
+                    {profile.displayName}
+                  </span>
+
+                  <span className="mt-1 block truncate text-[10px] text-neutral-600">
+                    {profile.email}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
               <span className="text-[10px] uppercase tracking-[0.16em] text-neutral-600">
                 Plan actual
               </span>
@@ -115,6 +140,13 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             </Link>
 
             <div className="flex items-center gap-2">
+              <UserAvatar
+                alt={`Avatar de ${profile.displayName}`}
+                avatarUrl={profile.avatarUrl}
+                initial={profile.initial}
+                size={30}
+              />
+
               <Link
                 className="rounded-lg border border-white/10 px-3 py-2 text-xs text-neutral-400"
                 href="/settings"
