@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+
 export const metadata: Metadata = {
   title: "Acceder",
-  description: "Acceso provisional a la plantilla SaaS.",
+  description: "Accede a tu cuenta mediante Google.",
 };
 
 export default function LoginPage() {
@@ -39,45 +41,20 @@ export default function LoginPage() {
               </h1>
 
               <p className="mt-4 text-sm leading-6 text-neutral-500">
-                La autenticación con Google se conectará más adelante mediante
-                Supabase.
+                Accede con tu cuenta de Google para entrar en la aplicación.
               </p>
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/[0.035] p-6 shadow-2xl shadow-black sm:p-8">
               <div className="mb-6 inline-flex rounded-full border border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-neutral-500">
-                Modo provisional
+                Acceso seguro
               </div>
 
-              <button
-                className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded-xl bg-white text-sm font-semibold text-black opacity-50"
-                disabled
-                title="Google todavía no está conectado"
-                type="button"
-              >
-                <span className="grid size-6 place-items-center rounded-full border border-black/10 text-xs font-bold">
-                  G
-                </span>
-                Continuar con Google
-              </button>
-
-              <div className="my-6 flex items-center gap-4">
-                <span className="h-px flex-1 bg-white/10" />
-                <span className="text-[10px] uppercase tracking-[0.14em] text-neutral-700">
-                  Demostración
-                </span>
-                <span className="h-px flex-1 bg-white/10" />
-              </div>
-
-              <Link
-                className="flex min-h-12 w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-sm font-medium text-neutral-300 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                href="/dashboard"
-              >
-                Entrar en el panel provisional
-              </Link>
+              <GoogleSignInButton />
 
               <p className="mt-6 text-center text-xs leading-5 text-neutral-700">
-                Este acceso no crea una cuenta ni almacena información.
+                Al continuar, Google compartirá con la aplicación tu nombre,
+                correo electrónico e imagen de perfil.
               </p>
             </div>
           </div>
