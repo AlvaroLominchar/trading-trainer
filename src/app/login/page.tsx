@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Acceder",
   description: "Accede a tu cuenta mediante Google.",
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const supabase = await createClient();
+
+  const { data: claimsData } = await supabase.auth.getClaims();
+
+  if (claimsData?.claims) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="min-h-screen bg-[#050505] text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-6 sm:px-8">

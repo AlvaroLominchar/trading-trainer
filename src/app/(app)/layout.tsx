@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: {
@@ -12,7 +15,17 @@ type AppLayoutProps = Readonly<{
   children: React.ReactNode;
 }>;
 
-export default function AppLayout({ children }: AppLayoutProps) {
+export default async function AppLayout({ children }: AppLayoutProps) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   return (
     <div className="min-h-screen bg-[#070707] text-white">
       <div className="flex min-h-screen">
@@ -27,6 +40,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
             <div>
               <span className="block text-sm font-semibold">Base</span>
+
               <span className="block text-[10px] uppercase tracking-[0.16em] text-neutral-600">
                 Aplicación
               </span>
@@ -77,12 +91,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
               </p>
             </div>
 
-            <Link
-              className="mt-4 flex min-h-10 items-center justify-center rounded-xl text-xs text-neutral-600 transition hover:bg-white/[0.04] hover:text-white"
-              href="/login"
-            >
-              Salir de la demostración
-            </Link>
+            <form action="/auth/signout" method="post">
+              <button
+                className="mt-4 flex min-h-10 w-full cursor-pointer items-center justify-center rounded-xl text-xs text-neutral-600 transition hover:bg-white/[0.04] hover:text-white"
+                type="submit"
+              >
+                Cerrar sesión
+              </button>
+            </form>
           </div>
         </aside>
 
@@ -98,12 +114,23 @@ export default function AppLayout({ children }: AppLayoutProps) {
               Base
             </Link>
 
-            <Link
-              className="rounded-lg border border-white/10 px-3 py-2 text-xs text-neutral-400"
-              href="/settings"
-            >
-              Configuración
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                className="rounded-lg border border-white/10 px-3 py-2 text-xs text-neutral-400"
+                href="/settings"
+              >
+                Configuración
+              </Link>
+
+              <form action="/auth/signout" method="post">
+                <button
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-neutral-500 transition hover:text-white"
+                  type="submit"
+                >
+                  Salir
+                </button>
+              </form>
+            </div>
           </header>
 
           {children}
