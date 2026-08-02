@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { getStripeConfigurationStatus } from "@/lib/stripe/server";
 
 export const metadata: Metadata = {
   title: "Configuración",
@@ -19,6 +20,9 @@ export default async function SettingsPage() {
 
   const { databaseConnected, profile, user } = currentProfile;
 
+  const stripeConfiguration =
+    await getStripeConfigurationStatus();
+
   const provider =
     user.app_metadata.provider === "google"
       ? "Google"
@@ -30,7 +34,12 @@ export default async function SettingsPage() {
       "PostgreSQL",
       databaseConnected ? "Perfil conectado" : "Perfil no disponible",
     ],
-    ["Stripe", "Pendiente"],
+    [
+      "Stripe",
+      stripeConfiguration.connected
+        ? "Precio conectado"
+        : "Configuración pendiente",
+    ],
   ];
 
   return (
@@ -102,7 +111,10 @@ export default async function SettingsPage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-neutral-600">
-                La integración con Stripe todavía no está conectada.
+                {stripeConfiguration.connected &&
+                stripeConfiguration.priceLabel
+                  ? `Stripe está conectado al precio ${stripeConfiguration.priceLabel}.`
+                  : "Stripe todavía no ha podido validar el precio configurado."}
               </p>
             </div>
 
@@ -130,7 +142,7 @@ export default async function SettingsPage() {
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {infrastructure.map(([service, status]) => {
               const isUnavailable =
-                status === "Pendiente" ||
+                status === "Configuración pendiente" ||
                 status === "Perfil no disponible";
 
               return (
