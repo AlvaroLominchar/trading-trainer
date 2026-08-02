@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { CheckoutButton } from "@/components/app/checkout-button";
 import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -118,18 +119,24 @@ export default async function SettingsPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start gap-3 sm:items-end">
               <span className="rounded-full border border-white/10 px-3 py-2 text-xs text-neutral-500">
                 Plan {profile.plan === "pro" ? "Pro" : "Free"}
               </span>
 
-              <button
-                className="min-h-10 cursor-not-allowed rounded-xl border border-white/10 px-4 text-xs text-neutral-500"
-                disabled
-                type="button"
-              >
-                Gestionar
-              </button>
+              {profile.plan === "pro" ? (
+                <button
+                  className="min-h-10 cursor-not-allowed rounded-xl border border-white/10 px-4 text-xs text-neutral-500"
+                  disabled
+                  type="button"
+                >
+                  Gestionar suscripción
+                </button>
+              ) : (
+                <CheckoutButton
+                  disabled={!stripeConfiguration.connected}
+                />
+              )}
             </div>
           </div>
         </section>
