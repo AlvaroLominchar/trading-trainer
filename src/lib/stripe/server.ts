@@ -1,8 +1,11 @@
+import "server-only";
+
 import Stripe from "stripe";
 
 type StripeEnvironmentVariable =
   | "STRIPE_SECRET_KEY"
-  | "STRIPE_PRICE_PRO_MONTHLY";
+  | "STRIPE_PRICE_PRO_MONTHLY"
+  | "STRIPE_WEBHOOK_SECRET";
 
 function getRequiredEnvironmentVariable(
   name: StripeEnvironmentVariable,
@@ -33,6 +36,12 @@ export function getStripeClient() {
 export function getProMonthlyPriceId() {
   return getRequiredEnvironmentVariable(
     "STRIPE_PRICE_PRO_MONTHLY",
+  );
+}
+
+export function getStripeWebhookSecret() {
+  return getRequiredEnvironmentVariable(
+    "STRIPE_WEBHOOK_SECRET",
   );
 }
 
