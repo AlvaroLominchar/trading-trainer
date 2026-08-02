@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 
@@ -23,14 +24,14 @@ export default async function SettingsPage() {
       ? "Google"
       : user.app_metadata.provider ?? "Desconocido";
 
-    const infrastructure = [
-      ["Autenticación", "Conectada"],
-      [
-        "PostgreSQL",
-        databaseConnected ? "Perfil conectado" : "Perfil no disponible",
-      ],
-      ["Stripe", "Pendiente"],
-    ];
+  const infrastructure = [
+    ["Autenticación", "Conectada"],
+    [
+      "PostgreSQL",
+      databaseConnected ? "Perfil conectado" : "Perfil no disponible",
+    ],
+    ["Stripe", "Pendiente"],
+  ];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
@@ -44,7 +45,7 @@ export default async function SettingsPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
-          Estos datos proceden actualmente de tu cuenta autenticada con Google.
+          Gestiona la información almacenada en el perfil de tu cuenta.
         </p>
       </header>
 
@@ -55,7 +56,8 @@ export default async function SettingsPage() {
               <h2 className="text-lg font-medium">Perfil</h2>
 
               <p className="mt-2 text-sm text-neutral-600">
-                Información recibida del proveedor de autenticación.
+                El nombre se almacena en PostgreSQL y puede editarse sin
+                modificar tu cuenta original de Google.
               </p>
             </div>
 
@@ -79,44 +81,25 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          <div className="mt-7 grid gap-6 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-xs text-neutral-500">
-                Nombre
-              </span>
-
-              <input
-                className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-neutral-300 outline-none"
-                readOnly
-                type="text"
-                value={profile.displayName}
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-xs text-neutral-500">
-                Correo electrónico
-              </span>
-
-              <input
-                className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-neutral-500 outline-none"
-                readOnly
-                type="email"
-                value={profile.email}
-              />
-            </label>
+          <div className="mt-7">
+            <ProfileForm
+              email={profile.email}
+              fullName={profile.displayName}
+            />
           </div>
 
           <p className="mt-6 text-xs leading-5 text-neutral-600">
-            Más adelante guardaremos un perfil editable en PostgreSQL sin
-            modificar los datos originales de Google.
+            El correo electrónico procede de Google y todavía no puede
+            modificarse desde esta aplicación.
           </p>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-medium">Plan y facturación</h2>
+              <h2 className="text-lg font-medium">
+                Plan y facturación
+              </h2>
 
               <p className="mt-2 text-sm leading-6 text-neutral-600">
                 La integración con Stripe todavía no está conectada.
@@ -145,28 +128,34 @@ export default async function SettingsPage() {
           </h2>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {infrastructure.map(([service, status]) => (
-              <div
-                className="rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-4"
-                key={service}
-              >
-                <span className="block text-xs text-neutral-600">
-                  {service}
-                </span>
+            {infrastructure.map(([service, status]) => {
+              const isUnavailable =
+                status === "Pendiente" ||
+                status === "Perfil no disponible";
 
-                <span className="mt-3 flex items-center gap-2 text-sm text-neutral-300">
-                  <span
-                    className={`size-1.5 rounded-full ${
-                      status === "Pendiente"
-                        ? "bg-neutral-600"
-                        : "bg-white"
-                    }`}
-                  />
+              return (
+                <div
+                  className="rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-4"
+                  key={service}
+                >
+                  <span className="block text-xs text-neutral-600">
+                    {service}
+                  </span>
 
-                  {status}
-                </span>
-              </div>
-            ))}
+                  <span className="mt-3 flex items-center gap-2 text-sm text-neutral-300">
+                    <span
+                      className={`size-1.5 rounded-full ${
+                        isUnavailable
+                          ? "bg-neutral-600"
+                          : "bg-white"
+                      }`}
+                    />
+
+                    {status}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>
