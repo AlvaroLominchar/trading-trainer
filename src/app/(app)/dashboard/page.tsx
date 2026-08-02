@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { UserAvatar } from "@/components/app/user-avatar";
-import { getUserProfile } from "@/lib/auth/user-profile";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/current-profile";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -47,17 +46,13 @@ const recentProjects = [
 ];
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  const currentProfile = await getCurrentProfile();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!currentProfile) {
     redirect("/login");
   }
 
-  const profile = getUserProfile(user);
+  const { profile } = currentProfile;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">

@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { UserAvatar } from "@/components/app/user-avatar";
-import { getUserProfile } from "@/lib/auth/user-profile";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/current-profile";
 
 export const metadata: Metadata = {
   title: "Configuración",
@@ -11,28 +10,27 @@ export const metadata: Metadata = {
 };
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
+  const currentProfile = await getCurrentProfile();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!currentProfile) {
     redirect("/login");
   }
 
-  const profile = getUserProfile(user);
+  const { databaseConnected, profile, user } = currentProfile;
 
   const provider =
     user.app_metadata.provider === "google"
       ? "Google"
       : user.app_metadata.provider ?? "Desconocido";
 
-  const infrastructure = [
-    ["Autenticación", "Conectada"],
-    ["PostgreSQL", "Proyecto creado"],
-    ["Stripe", "Pendiente"],
-  ];
+    const infrastructure = [
+      ["Autenticación", "Conectada"],
+      [
+        "PostgreSQL",
+        databaseConnected ? "Perfil conectado" : "Perfil no disponible",
+      ],
+      ["Stripe", "Pendiente"],
+    ];
 
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
@@ -127,7 +125,7 @@ export default async function SettingsPage() {
 
             <div className="flex items-center gap-3">
               <span className="rounded-full border border-white/10 px-3 py-2 text-xs text-neutral-500">
-                Plan Free
+                Plan {profile.plan === "pro" ? "Pro" : "Free"}
               </span>
 
               <button

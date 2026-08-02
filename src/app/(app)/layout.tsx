@@ -3,8 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { UserAvatar } from "@/components/app/user-avatar";
-import { getUserProfile } from "@/lib/auth/user-profile";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/current-profile";
 
 export const metadata: Metadata = {
   title: {
@@ -18,17 +17,13 @@ type AppLayoutProps = Readonly<{
 }>;
 
 export default async function AppLayout({ children }: AppLayoutProps) {
-  const supabase = await createClient();
+  const currentProfile = await getCurrentProfile();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!currentProfile) {
     redirect("/login");
   }
 
-  const profile = getUserProfile(user);
+  const { profile } = currentProfile;
 
   return (
     <div className="min-h-screen bg-[#070707] text-white">
@@ -100,7 +95,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               </span>
 
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm font-medium">Free</span>
+                <span className="text-sm font-medium">
+                  {profile.plan === "pro" ? "Pro" : "Free"}
+                </span>
 
                 <span className="rounded-full border border-white/10 px-2 py-1 text-[9px] text-neutral-500">
                   DEMO
@@ -108,7 +105,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               </div>
 
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full w-1/3 rounded-full bg-white" />
+                <div
+                  className={`h-full rounded-full bg-white ${
+                    profile.plan === "pro" ? "w-full" : "w-1/3"
+                  }`}
+                />
               </div>
 
               <p className="mt-3 text-xs leading-5 text-neutral-600">
