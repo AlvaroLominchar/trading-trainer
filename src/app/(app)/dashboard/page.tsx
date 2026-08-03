@@ -58,15 +58,15 @@ export default async function DashboardPage() {
     <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <header className="flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
         <div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
             Overview
           </span>
 
-          <h1 className="mt-3 text-3xl font-medium tracking-[-0.045em] sm:text-4xl">
+          <h1 className="mt-3 text-3xl font-medium tracking-[-0.045em] text-app-text sm:text-4xl">
             Hola, {profile.firstName}
           </h1>
 
-          <p className="mt-3 text-sm leading-6 text-neutral-500">
+          <p className="mt-3 text-sm leading-6 text-app-text-soft">
             Tu cuenta está autenticada y preparada para seguir construyendo.
           </p>
         </div>
@@ -81,18 +81,18 @@ export default async function DashboardPage() {
             />
 
             <div className="max-w-48">
-              <span className="block truncate text-sm text-neutral-300">
+              <span className="block truncate text-sm text-app-text">
                 {profile.displayName}
               </span>
 
-              <span className="mt-1 block truncate text-xs text-neutral-600">
+              <span className="mt-1 block truncate text-xs text-app-text-muted">
                 {profile.email}
               </span>
             </div>
           </div>
 
           <button
-            className="min-h-11 cursor-not-allowed rounded-xl bg-white px-5 text-sm font-semibold text-black opacity-50"
+            className="min-h-11 cursor-not-allowed rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text opacity-50"
             disabled
             title="Esta función se añadirá más adelante"
             type="button"
@@ -102,26 +102,28 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <div className="mt-8 inline-flex rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-neutral-600">
+      <div className="mt-8 inline-flex rounded-full border border-app-border bg-app-surface-subtle px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
         Métricas de demostración
       </div>
 
       <section
-        className="mt-4 grid gap-3 md:grid-cols-3"
         aria-label="Resumen de métricas"
+        className="mt-4 grid gap-3 md:grid-cols-3"
       >
         {metrics.map((metric) => (
           <article
-            className="rounded-2xl border border-white/10 bg-white/[0.035] p-6"
+            className="rounded-2xl border border-app-border bg-app-surface-subtle p-6"
             key={metric.label}
           >
-            <span className="text-xs text-neutral-500">{metric.label}</span>
+            <span className="text-xs text-app-text-soft">
+              {metric.label}
+            </span>
 
-            <strong className="mt-5 block text-3xl font-medium tracking-[-0.05em]">
+            <strong className="mt-5 block text-3xl font-medium tracking-[-0.05em] text-app-text">
               {metric.value}
             </strong>
 
-            <span className="mt-3 block text-xs text-neutral-600">
+            <span className="mt-3 block text-xs text-app-text-muted">
               {metric.detail}
             </span>
           </article>
@@ -129,27 +131,30 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <article className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
+        <article className="rounded-2xl border border-app-border bg-app-surface-subtle p-6">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs text-neutral-600">Actividad</span>
-              <h2 className="mt-2 text-lg font-medium">
+              <span className="text-xs text-app-text-muted">
+                Actividad
+              </span>
+
+              <h2 className="mt-2 text-lg font-medium text-app-text">
                 Crecimiento mensual
               </h2>
             </div>
 
-            <span className="rounded-lg border border-white/10 px-3 py-2 text-[10px] text-neutral-600">
+            <span className="rounded-lg border border-app-border px-3 py-2 text-[10px] text-app-text-muted">
               12 meses
             </span>
           </div>
 
-          <div className="relative mt-8 h-64 overflow-hidden rounded-xl border border-white/[0.06] bg-[#0a0a0a]">
+          <div className="relative mt-8 h-64 overflow-hidden rounded-xl border border-app-border bg-app-page-soft">
             <div className="absolute inset-0 flex flex-col justify-between p-5">
-              <span className="h-px bg-white/[0.05]" />
-              <span className="h-px bg-white/[0.05]" />
-              <span className="h-px bg-white/[0.05]" />
-              <span className="h-px bg-white/[0.05]" />
-              <span className="h-px bg-white/[0.05]" />
+              <span className="h-px bg-app-border opacity-50" />
+              <span className="h-px bg-app-border opacity-50" />
+              <span className="h-px bg-app-border opacity-50" />
+              <span className="h-px bg-app-border opacity-50" />
+              <span className="h-px bg-app-border opacity-50" />
             </div>
 
             <svg
@@ -168,11 +173,14 @@ export default async function DashboardPage() {
                 >
                   <stop
                     offset="0%"
-                    stopColor="rgba(255,255,255,0.20)"
+                    stopColor="var(--theme-accent)"
+                    stopOpacity="0.2"
                   />
+
                   <stop
                     offset="100%"
-                    stopColor="rgba(255,255,255,0)"
+                    stopColor="var(--theme-accent)"
+                    stopOpacity="0"
                   />
                 </linearGradient>
               </defs>
@@ -185,7 +193,8 @@ export default async function DashboardPage() {
               <path
                 d="M0,210 C65,205 95,181 146,187 C207,194 225,142 284,153 C343,164 371,112 426,123 C489,136 515,75 577,87 C629,97 658,45 700,32"
                 fill="none"
-                stroke="rgba(255,255,255,0.9)"
+                stroke="var(--theme-accent)"
+                strokeOpacity="0.9"
                 strokeWidth="2"
                 vectorEffect="non-scaling-stroke"
               />
@@ -193,26 +202,34 @@ export default async function DashboardPage() {
           </div>
         </article>
 
-        <article className="rounded-2xl border border-white/10 bg-white/[0.025] p-6">
+        <article className="rounded-2xl border border-app-border bg-app-surface-subtle p-6">
           <div>
-            <span className="text-xs text-neutral-600">Proyectos</span>
-            <h2 className="mt-2 text-lg font-medium">Actividad reciente</h2>
+            <span className="text-xs text-app-text-muted">
+              Proyectos
+            </span>
+
+            <h2 className="mt-2 text-lg font-medium text-app-text">
+              Actividad reciente
+            </h2>
           </div>
 
-          <div className="mt-7 divide-y divide-white/[0.07]">
+          <div className="mt-7 divide-y divide-app-border">
             {recentProjects.map((project) => (
-              <div className="py-5 first:pt-0" key={project.name}>
+              <div
+                className="py-5 first:pt-0"
+                key={project.name}
+              >
                 <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-sm font-medium text-neutral-200">
+                  <h3 className="text-sm font-medium text-app-text">
                     {project.name}
                   </h3>
 
-                  <span className="rounded-full border border-white/10 px-2 py-1 text-[9px] text-neutral-500">
+                  <span className="rounded-full border border-app-border px-2 py-1 text-[9px] text-app-text-soft">
                     {project.status}
                   </span>
                 </div>
 
-                <p className="mt-2 text-xs text-neutral-600">
+                <p className="mt-2 text-xs text-app-text-muted">
                   {project.updatedAt}
                 </p>
               </div>
