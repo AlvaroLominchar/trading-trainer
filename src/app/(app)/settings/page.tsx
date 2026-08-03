@@ -6,6 +6,7 @@ import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import { getStripeConfigurationStatus } from "@/lib/stripe/server";
+import { BillingPortalButton } from "@/components/app/billing-portal-button";
 
 export const metadata: Metadata = {
   title: "Configuración",
@@ -162,13 +163,7 @@ export default async function SettingsPage() {
                 </p>
               </div>
 
-              <button
-                className="min-h-10 cursor-not-allowed rounded-xl border border-white/10 px-4 text-xs text-neutral-500"
-                disabled
-                type="button"
-              >
-                Gestionar suscripción
-              </button>
+              <BillingPortalButton />
             </div>
           ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2">

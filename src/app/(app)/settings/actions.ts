@@ -22,6 +22,11 @@ export type CreateCheckoutState = {
   message: string;
 };
 
+export type CreateBillingPortalState = {
+  status: "idle" | "error";
+  message: string;
+};
+
 export type CheckoutPlan = PaidPlan;
 
 const NON_TERMINAL_SUBSCRIPTION_STATUSES = new Set([
@@ -333,4 +338,97 @@ export async function createCheckoutSession(
   }
 
   redirect(checkoutUrl);
+}
+
+export async function createBillingPortalSession(
+  _previousState: CreateBillingPortalState,
+  _formData: FormData,
+): Promise<CreateBillingPortalState> {
+  void _previousState;
+  void _formData;
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return {
+      status: "error",
+      message:
+        "Tu sesión no es válida. Vuelve a iniciar sesión.",
+    };
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+
+  const {
+    data: subscription,
+    error: subscriptionError,
+  } = await supabaseAdmin
+    .from("subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    console.error(
+      "Subscription lookup before Customer Portal failed:",
+      subscriptionError,
+    );
+
+    return {
+      status: "error",
+      message:
+        "No se pudo recuperar tu suscripción. Inténtalo de nuevo.",
+    };
+  }
+
+  const stripeCustomerId =
+    subscription?.stripe_customer_id?.trim();
+
+  if (!stripeCustomerId) {
+    return {
+      status: "error",
+      message:
+        "No se encontró una suscripción asociada a tu cuenta.",
+    };
+  }
+
+  let portalUrl: string | null = null;
+
+  try {
+    const applicationUrl = await getApplicationUrl();
+
+    const portalSession =
+      await getStripeClient().billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: `${applicationUrl}/settings`,
+      });
+
+    portalUrl = portalSession.url;
+  } catch (error) {
+    console.error(
+      "Stripe Customer Portal Session creation failed:",
+      error,
+    );
+
+    return {
+      status: "error",
+      message:
+        "No se pudo abrir la gestión de la suscripción. Inténtalo de nuevo.",
+    };
+  }
+
+  if (!portalUrl) {
+    return {
+      status: "error",
+      message:
+        "Stripe no devolvió una dirección válida para el portal.",
+    };
+  }
+
+  redirect(portalUrl);
 }
