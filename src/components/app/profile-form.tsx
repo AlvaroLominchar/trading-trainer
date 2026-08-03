@@ -30,13 +30,13 @@ export function ProfileForm({
     <form action={formAction}>
       <div className="grid gap-6 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-2 block text-xs text-neutral-500">
+          <span className="mb-2 block text-xs text-app-text-soft">
             Nombre
           </span>
 
           <input
             autoComplete="name"
-            className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-neutral-200 outline-none transition placeholder:text-neutral-700 focus:border-white/25"
+            className="min-h-12 w-full rounded-xl border border-app-border bg-app-page-soft px-4 text-sm text-app-text outline-none transition placeholder:text-app-text-muted focus:border-app-border-strong"
             defaultValue={fullName}
             maxLength={80}
             minLength={2}
@@ -47,12 +47,12 @@ export function ProfileForm({
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs text-neutral-500">
+          <span className="mb-2 block text-xs text-app-text-soft">
             Correo electrónico
           </span>
 
           <input
-            className="min-h-12 w-full cursor-not-allowed rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-neutral-600 outline-none"
+            className="min-h-12 w-full cursor-not-allowed rounded-xl border border-app-border bg-app-page-soft px-4 text-sm text-app-text-muted outline-none"
             readOnly
             type="email"
             value={email}
@@ -62,11 +62,13 @@ export function ProfileForm({
 
       <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
         <button
-          className="min-h-11 rounded-xl bg-white px-5 text-sm font-semibold text-black transition hover:bg-neutral-200 disabled:cursor-wait disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text transition hover:bg-app-accent-hover disabled:cursor-wait disabled:opacity-60"
           disabled={isPending}
           type="submit"
         >
-          {isPending ? "Guardando..." : "Guardar cambios"}
+          {isPending
+            ? "Guardando..."
+            : "Guardar cambios"}
         </button>
 
         {state.message ? (
@@ -74,10 +76,14 @@ export function ProfileForm({
             aria-live="polite"
             className={`text-xs leading-5 ${
               state.status === "error"
-                ? "text-red-300"
-                : "text-neutral-300"
+                ? "text-app-danger"
+                : "text-app-text-soft"
             }`}
-            role={state.status === "error" ? "alert" : "status"}
+            role={
+              state.status === "error"
+                ? "alert"
+                : "status"
+            }
           >
             {state.message}
           </p>

@@ -15,7 +15,7 @@ export function UserAvatar({
 }: UserAvatarProps) {
   return (
     <span
-      className="relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-neutral-900 text-xs font-semibold text-white"
+      className="relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-app-border bg-app-surface text-xs font-semibold text-app-text"
       style={{
         height: size,
         width: size,

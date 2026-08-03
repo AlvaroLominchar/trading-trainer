@@ -38,7 +38,7 @@ export function CheckoutButton({
       />
 
       <button
-        className="min-h-10 w-full rounded-xl bg-white px-4 text-xs font-semibold text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50"
+        className="min-h-10 w-full rounded-xl bg-app-accent px-4 text-xs font-semibold text-app-accent-text transition hover:bg-app-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         disabled={disabled || isPending}
         type="submit"
       >
@@ -48,7 +48,7 @@ export function CheckoutButton({
       {state.message ? (
         <p
           aria-live="polite"
-          className="mt-3 max-w-xs text-xs leading-5 text-red-300"
+          className="mt-3 max-w-xs text-xs leading-5 text-app-danger"
           role="alert"
         >
           {state.message}

@@ -21,7 +21,7 @@ export function BillingPortalButton() {
   return (
     <form action={formAction}>
       <button
-        className="min-h-10 rounded-xl bg-white px-4 text-xs font-semibold text-black transition hover:bg-neutral-200 disabled:cursor-wait disabled:opacity-60"
+        className="min-h-10 rounded-xl bg-app-accent px-4 text-xs font-semibold text-app-accent-text transition hover:bg-app-accent-hover disabled:cursor-wait disabled:opacity-60"
         disabled={isPending}
         type="submit"
       >
@@ -33,7 +33,7 @@ export function BillingPortalButton() {
       {state.message ? (
         <p
           aria-live="polite"
-          className="mt-3 max-w-xs text-xs leading-5 text-red-300 sm:text-right"
+          className="mt-3 max-w-xs text-xs leading-5 text-app-danger sm:text-right"
           role="alert"
         >
           {state.message}
