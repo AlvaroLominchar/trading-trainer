@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
-  getProMonthlyPriceId,
+  getPaidPlanFromPriceId,
   getStripeClient,
   getStripeWebhookSecret,
 } from "@/lib/stripe/server";
@@ -103,15 +103,24 @@ async function synchronizeSubscription(
   const subscription =
     await stripe.subscriptions.retrieve(subscriptionId);
 
-  const expectedPriceId = getProMonthlyPriceId();
-
   const subscriptionItem = subscription.items.data.find(
-    (item) => item.price.id === expectedPriceId,
+    (item) =>
+      getPaidPlanFromPriceId(item.price.id) !== null,
   );
 
   if (!subscriptionItem) {
     throw new Error(
-      `La suscripción ${subscription.id} no utiliza el precio Pro configurado.`,
+      `La suscripción ${subscription.id} no utiliza un precio configurado para Plus o Premium.`,
+    );
+  }
+
+  const plan = getPaidPlanFromPriceId(
+    subscriptionItem.price.id,
+  );
+
+  if (!plan) {
+    throw new Error(
+      `No se pudo determinar el plan de la suscripción ${subscription.id}.`,
     );
   }
 
@@ -158,6 +167,7 @@ async function synchronizeSubscription(
       p_stripe_subscription_id: subscription.id,
       p_stripe_price_id: subscriptionItem.price.id,
       p_status: subscription.status,
+      p_plan: plan,
       p_current_period_end: currentPeriodEnd,
       p_cancel_at_period_end:
         subscription.cancel_at_period_end,
