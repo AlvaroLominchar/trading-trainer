@@ -1,17 +1,101 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { BillingPortalButton } from "@/components/app/billing-portal-button";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
+import {
+  getCurrentSubscription,
+  type CurrentSubscriptionResult,
+} from "@/lib/billing/current-subscription";
 import { getStripeConfigurationStatus } from "@/lib/stripe/server";
-import { BillingPortalButton } from "@/components/app/billing-portal-button";
 
 export const metadata: Metadata = {
   title: "Configuración",
   description: "Configuración de la cuenta.",
 };
+
+function formatBillingDate(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function getBillingDescription(
+  result: CurrentSubscriptionResult,
+) {
+  if (!result.available) {
+    return "No se pudo consultar el estado actual de la suscripción.";
+  }
+
+  const subscription = result.subscription;
+
+  if (!subscription) {
+    return "No se encontró una suscripción sincronizada para esta cuenta.";
+  }
+
+  const cancellationDate = formatBillingDate(
+    subscription.cancellationDate,
+  );
+
+  if (subscription.isCancellationScheduled) {
+    return cancellationDate
+      ? `Tu suscripción seguirá activa hasta el ${cancellationDate}. Después pasarás al plan Free.`
+      : "Tu suscripción tiene una cancelación programada y continuará activa hasta terminar el periodo actual.";
+  }
+
+  const renewalDate = formatBillingDate(
+    subscription.currentPeriodEnd,
+  );
+
+  switch (subscription.status) {
+    case "active":
+      return renewalDate
+        ? `Renovación automática prevista para el ${renewalDate}.`
+        : "La suscripción está activa y se renovará automáticamente.";
+
+    case "trialing":
+      return renewalDate
+        ? `El periodo de prueba termina el ${renewalDate}.`
+        : "La suscripción se encuentra en periodo de prueba.";
+
+    case "past_due":
+      return "Stripe no ha podido completar el último cobro. Revisa el método de pago.";
+
+    case "unpaid":
+      return "La suscripción tiene un pago pendiente. Revisa la facturación en Stripe.";
+
+    case "paused":
+      return "La suscripción se encuentra temporalmente pausada.";
+
+    case "incomplete":
+      return "La activación de la suscripción todavía no se ha completado.";
+
+    case "incomplete_expired":
+      return "El intento de activar la suscripción ha caducado.";
+
+    case "canceled":
+      return "La suscripción figura como cancelada en Stripe.";
+
+    default:
+      return "Consulta Stripe para revisar el estado actual de la suscripción.";
+  }
+}
 
 export default async function SettingsPage() {
   const currentProfile = await getCurrentProfile();
@@ -23,8 +107,13 @@ export default async function SettingsPage() {
   const { databaseConnected, profile, user } =
     currentProfile;
 
-  const stripeConfiguration =
-    await getStripeConfigurationStatus();
+  const [
+    stripeConfiguration,
+    currentSubscription,
+  ] = await Promise.all([
+    getStripeConfigurationStatus(),
+    getCurrentSubscription(user.id),
+  ]);
 
   const provider =
     user.app_metadata.provider === "google"
@@ -48,6 +137,13 @@ export default async function SettingsPage() {
   const premiumPriceLabel =
     stripeConfiguration.plans.premium.priceLabel ??
     "19,99 €/mes";
+
+  const billingDescription =
+    getBillingDescription(currentSubscription);
+
+  const hasScheduledCancellation =
+    currentSubscription.subscription
+      ?.isCancellationScheduled === true;
 
   const infrastructure = [
     ["Autenticación", "Conectada"],
@@ -151,15 +247,28 @@ export default async function SettingsPage() {
           </div>
 
           {isPaidPlan ? (
-            <div className="mt-6 flex flex-col justify-between gap-4 rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-5 sm:flex-row sm:items-center">
+            <div className="mt-6 flex flex-col justify-between gap-5 rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-5 sm:flex-row sm:items-center">
               <div>
-                <span className="text-sm font-medium text-neutral-200">
-                  Suscripción {planLabel}
-                </span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-medium text-neutral-200">
+                    Suscripción {planLabel}
+                  </span>
 
-                <p className="mt-2 text-xs leading-5 text-neutral-600">
-                  Tu suscripción está gestionada mediante
-                  Stripe.
+                  <span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-neutral-500">
+                    {hasScheduledCancellation
+                      ? "Cancelación programada"
+                      : "Renovación automática"}
+                  </span>
+                </div>
+
+                <p
+                  className={`mt-3 max-w-xl text-xs leading-5 ${
+                    hasScheduledCancellation
+                      ? "text-neutral-300"
+                      : "text-neutral-600"
+                  }`}
+                >
+                  {billingDescription}
                 </p>
               </div>
 
