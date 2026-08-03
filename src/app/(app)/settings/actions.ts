@@ -220,7 +220,6 @@ export async function createCheckoutSession(
   }
 
   if (
-    profile.plan === "pro" ||
     profile.plan === "plus" ||
     profile.plan === "premium"
   ) {

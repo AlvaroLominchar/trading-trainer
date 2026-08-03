@@ -8,7 +8,6 @@ type StripeEnvironmentVariable =
   | "STRIPE_SECRET_KEY"
   | "STRIPE_PRICE_PLUS_MONTHLY"
   | "STRIPE_PRICE_PREMIUM_MONTHLY"
-  | "STRIPE_PRICE_PRO_MONTHLY"
   | "STRIPE_WEBHOOK_SECRET";
 
 const EXPECTED_MONTHLY_AMOUNTS: Record<PaidPlan, number> = {
@@ -50,14 +49,6 @@ export function getMonthlyPriceId(plan: PaidPlan) {
     : getRequiredEnvironmentVariable(
         "STRIPE_PRICE_PREMIUM_MONTHLY",
       );
-}
-
-/*
- * Compatibilidad temporal con el Checkout actual.
- * Se eliminará cuando el usuario pueda escoger Plus o Premium.
- */
-export function getProMonthlyPriceId() {
-  return getMonthlyPriceId("premium");
 }
 
 export function getPaidPlanFromPriceId(

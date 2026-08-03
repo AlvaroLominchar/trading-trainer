@@ -16,10 +16,7 @@ function normalizeAccountPlan(
     return "plus";
   }
 
-  if (
-    databasePlan === "premium" ||
-    databasePlan === "pro"
-  ) {
+  if (databasePlan === "premium") {
     return "premium";
   }
 
