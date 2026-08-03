@@ -1,13 +1,15 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import {
-  getProMonthlyPriceId,
+  getMonthlyPriceId,
   getStripeClient,
+  type PaidPlan,
 } from "@/lib/stripe/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type UpdateProfileState = {
@@ -20,8 +22,29 @@ export type CreateCheckoutState = {
   message: string;
 };
 
+export type CheckoutPlan = PaidPlan;
+
+const NON_TERMINAL_SUBSCRIPTION_STATUSES = new Set([
+  "incomplete",
+  "trialing",
+  "active",
+  "past_due",
+  "unpaid",
+  "paused",
+]);
+
 function getFirstHeaderValue(value: string | null) {
   return value?.split(",")[0]?.trim() || null;
+}
+
+function getRequestedPaidPlan(
+  value: FormDataEntryValue | null,
+): PaidPlan | null {
+  if (value === "plus" || value === "premium") {
+    return value;
+  }
+
+  return null;
 }
 
 async function getApplicationUrl() {
@@ -71,19 +94,23 @@ export async function updateProfile(
     };
   }
 
-  const fullName = fullNameValue.trim().replace(/\s+/g, " ");
+  const fullName = fullNameValue
+    .trim()
+    .replace(/\s+/g, " ");
 
   if (fullName.length < 2) {
     return {
       status: "error",
-      message: "El nombre debe contener al menos 2 caracteres.",
+      message:
+        "El nombre debe contener al menos 2 caracteres.",
     };
   }
 
   if (fullName.length > 80) {
     return {
       status: "error",
-      message: "El nombre no puede superar los 80 caracteres.",
+      message:
+        "El nombre no puede superar los 80 caracteres.",
     };
   }
 
@@ -97,7 +124,8 @@ export async function updateProfile(
   if (userError || !user) {
     return {
       status: "error",
-      message: "Tu sesión no es válida. Vuelve a iniciar sesión.",
+      message:
+        "Tu sesión no es válida. Vuelve a iniciar sesión.",
     };
   }
 
@@ -112,7 +140,10 @@ export async function updateProfile(
       .single();
 
   if (updateError || !updatedProfile) {
-    console.error("Profile update failed:", updateError);
+    console.error(
+      "Profile update failed:",
+      updateError,
+    );
 
     return {
       status: "error",
@@ -132,10 +163,21 @@ export async function updateProfile(
 
 export async function createCheckoutSession(
   _previousState: CreateCheckoutState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<CreateCheckoutState> {
   void _previousState;
-  void _formData;
+
+  const requestedPlan = getRequestedPaidPlan(
+    formData.get("plan"),
+  );
+
+  if (!requestedPlan) {
+    return {
+      status: "error",
+      message:
+        "El plan seleccionado no es válido.",
+    };
+  }
 
   const supabase = await createClient();
 
@@ -147,7 +189,8 @@ export async function createCheckoutSession(
   if (userError || !user) {
     return {
       status: "error",
-      message: "Tu sesión no es válida. Vuelve a iniciar sesión.",
+      message:
+        "Tu sesión no es válida. Vuelve a iniciar sesión.",
     };
   }
 
@@ -171,12 +214,57 @@ export async function createCheckoutSession(
     };
   }
 
-  if (profile.plan === "pro") {
+  if (
+    profile.plan === "pro" ||
+    profile.plan === "plus" ||
+    profile.plan === "premium"
+  ) {
     return {
       status: "error",
-      message: "Tu cuenta ya tiene el plan Pro.",
+      message:
+        "Tu cuenta ya tiene una suscripción de pago.",
     };
   }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+
+  const {
+    data: existingSubscription,
+    error: subscriptionError,
+  } = await supabaseAdmin
+    .from("subscriptions")
+    .select("stripe_customer_id, status")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    console.error(
+      "Subscription lookup before Checkout failed:",
+      subscriptionError,
+    );
+
+    return {
+      status: "error",
+      message:
+        "No se pudo comprobar tu suscripción. Inténtalo de nuevo.",
+    };
+  }
+
+  if (
+    existingSubscription &&
+    NON_TERMINAL_SUBSCRIPTION_STATUSES.has(
+      existingSubscription.status,
+    )
+  ) {
+    return {
+      status: "error",
+      message:
+        "Ya existe una suscripción asociada a tu cuenta.",
+    };
+  }
+
+  const existingCustomerId =
+    existingSubscription?.stripe_customer_id?.trim();
 
   let checkoutUrl: string | null = null;
 
@@ -189,22 +277,37 @@ export async function createCheckoutSession(
         mode: "subscription",
         line_items: [
           {
-            price: getProMonthlyPriceId(),
+            price: getMonthlyPriceId(requestedPlan),
             quantity: 1,
           },
         ],
         client_reference_id: user.id,
-        customer_email: user.email ?? undefined,
+
+        ...(existingCustomerId
+          ? {
+              customer: existingCustomerId,
+            }
+          : {
+              customer_email:
+                user.email ?? undefined,
+            }),
+
         metadata: {
           supabase_user_id: user.id,
+          requested_plan: requestedPlan,
         },
+
         subscription_data: {
           metadata: {
             supabase_user_id: user.id,
+            requested_plan: requestedPlan,
           },
         },
-        success_url: `${applicationUrl}/settings?checkout=success`,
-        cancel_url: `${applicationUrl}/settings?checkout=cancelled`,
+
+        success_url:
+          `${applicationUrl}/settings?checkout=success`,
+        cancel_url:
+          `${applicationUrl}/settings?checkout=cancelled`,
       });
 
     checkoutUrl = checkoutSession.url;

@@ -96,7 +96,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-sm font-medium">
-                  {profile.plan === "pro" ? "Pro" : "Free"}
+                  {profile.plan === "premium"
+                    ? "Premium"
+                    : profile.plan === "plus"
+                      ? "Plus"
+                      : "Free"}
                 </span>
 
                 <span className="rounded-full border border-white/10 px-2 py-1 text-[9px] text-neutral-500">
@@ -107,7 +111,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
                 <div
                   className={`h-full rounded-full bg-white ${
-                    profile.plan === "pro" ? "w-full" : "w-1/3"
+                    profile.plan === "premium"
+                      ? "w-full"
+                      : profile.plan === "plus"
+                        ? "w-2/3"
+                        : "w-1/3"
                   }`}
                 />
               </div>

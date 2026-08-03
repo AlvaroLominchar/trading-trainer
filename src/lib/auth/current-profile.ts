@@ -1,11 +1,30 @@
 import { getUserProfile } from "@/lib/auth/user-profile";
 import { createClient } from "@/lib/supabase/server";
 
+export type AccountPlan = "free" | "plus" | "premium";
+
 type DatabaseProfile = {
   full_name: string | null;
   avatar_url: string | null;
   plan: string;
 };
+
+function normalizeAccountPlan(
+  databasePlan: string | undefined,
+): AccountPlan {
+  if (databasePlan === "plus") {
+    return "plus";
+  }
+
+  if (
+    databasePlan === "premium" ||
+    databasePlan === "pro"
+  ) {
+    return "premium";
+  }
+
+  return "free";
+}
 
 export async function getCurrentProfile() {
   const supabase = await createClient();
@@ -30,19 +49,27 @@ export async function getCurrentProfile() {
     .maybeSingle<DatabaseProfile>();
 
   const displayName =
-    databaseProfile?.full_name?.trim() || authProfile.displayName;
+    databaseProfile?.full_name?.trim() ||
+    authProfile.displayName;
 
   const avatarUrl =
-    databaseProfile?.avatar_url?.trim() || authProfile.avatarUrl;
+    databaseProfile?.avatar_url?.trim() ||
+    authProfile.avatarUrl;
 
-  const plan = databaseProfile?.plan === "pro" ? "pro" : "free";
+  const plan = normalizeAccountPlan(
+    databaseProfile?.plan,
+  );
 
-  const firstName = displayName.split(/\s+/)[0] || "Usuario";
-  const initial = displayName.charAt(0).toUpperCase() || "U";
+  const firstName =
+    displayName.split(/\s+/)[0] || "Usuario";
+
+  const initial =
+    displayName.charAt(0).toUpperCase() || "U";
 
   return {
     user,
-    databaseConnected: !error && databaseProfile !== null,
+    databaseConnected:
+      !error && databaseProfile !== null,
     profile: {
       displayName,
       firstName,

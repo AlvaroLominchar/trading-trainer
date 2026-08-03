@@ -2,10 +2,19 @@ import "server-only";
 
 import Stripe from "stripe";
 
+export type PaidPlan = "plus" | "premium";
+
 type StripeEnvironmentVariable =
   | "STRIPE_SECRET_KEY"
+  | "STRIPE_PRICE_PLUS_MONTHLY"
+  | "STRIPE_PRICE_PREMIUM_MONTHLY"
   | "STRIPE_PRICE_PRO_MONTHLY"
   | "STRIPE_WEBHOOK_SECRET";
+
+const EXPECTED_MONTHLY_AMOUNTS: Record<PaidPlan, number> = {
+  plus: 499,
+  premium: 1999,
+};
 
 function getRequiredEnvironmentVariable(
   name: StripeEnvironmentVariable,
@@ -33,10 +42,36 @@ export function getStripeClient() {
   return stripeClient;
 }
 
+export function getMonthlyPriceId(plan: PaidPlan) {
+  return plan === "plus"
+    ? getRequiredEnvironmentVariable(
+        "STRIPE_PRICE_PLUS_MONTHLY",
+      )
+    : getRequiredEnvironmentVariable(
+        "STRIPE_PRICE_PREMIUM_MONTHLY",
+      );
+}
+
+/*
+ * Compatibilidad temporal con el Checkout actual.
+ * Se eliminará cuando el usuario pueda escoger Plus o Premium.
+ */
 export function getProMonthlyPriceId() {
-  return getRequiredEnvironmentVariable(
-    "STRIPE_PRICE_PRO_MONTHLY",
-  );
+  return getMonthlyPriceId("premium");
+}
+
+export function getPaidPlanFromPriceId(
+  priceId: string,
+): PaidPlan | null {
+  if (priceId === getMonthlyPriceId("plus")) {
+    return "plus";
+  }
+
+  if (priceId === getMonthlyPriceId("premium")) {
+    return "premium";
+  }
+
+  return null;
 }
 
 export function getStripeWebhookSecret() {
@@ -45,31 +80,47 @@ export function getStripeWebhookSecret() {
   );
 }
 
-export type StripeConfigurationStatus = {
+export type StripePlanPriceStatus = {
   connected: boolean;
   priceLabel: string | null;
 };
 
-export async function getStripeConfigurationStatus(): Promise<StripeConfigurationStatus> {
+export type StripeConfigurationStatus = {
+  connected: boolean;
+
+  /*
+   * Compatibilidad temporal con settings/page.tsx.
+   * Representa el precio Premium actual.
+   */
+  priceLabel: string | null;
+
+  plans: Record<PaidPlan, StripePlanPriceStatus>;
+};
+
+async function getStripePlanPriceStatus(
+  plan: PaidPlan,
+): Promise<StripePlanPriceStatus> {
   try {
     const stripe = getStripeClient();
+    const priceId = getMonthlyPriceId(plan);
 
-    const price = await stripe.prices.retrieve(
-      getProMonthlyPriceId(),
-    );
+    const price = await stripe.prices.retrieve(priceId);
 
     const recurring = price.recurring;
     const unitAmount = price.unit_amount;
+    const expectedUnitAmount =
+      EXPECTED_MONTHLY_AMOUNTS[plan];
 
     if (
       !price.active ||
       price.type !== "recurring" ||
       recurring?.interval !== "month" ||
-      recurring?.interval_count !== 1 ||
-      typeof unitAmount !== "number"
+      recurring.interval_count !== 1 ||
+      price.currency.toLowerCase() !== "eur" ||
+      unitAmount !== expectedUnitAmount
     ) {
       console.error(
-        "El precio configurado no es una tarifa mensual activa.",
+        `La tarifa configurada para ${plan} no coincide con la tarifa mensual esperada.`,
       );
 
       return {
@@ -80,7 +131,7 @@ export async function getStripeConfigurationStatus(): Promise<StripeConfiguratio
 
     const formattedAmount = new Intl.NumberFormat("es-ES", {
       style: "currency",
-      currency: price.currency.toUpperCase(),
+      currency: "EUR",
     }).format(unitAmount / 100);
 
     return {
@@ -89,7 +140,7 @@ export async function getStripeConfigurationStatus(): Promise<StripeConfiguratio
     };
   } catch (error) {
     console.error(
-      "No se pudo validar la configuración de Stripe:",
+      `No se pudo validar la tarifa de Stripe para ${plan}:`,
       error,
     );
 
@@ -98,4 +149,33 @@ export async function getStripeConfigurationStatus(): Promise<StripeConfiguratio
       priceLabel: null,
     };
   }
+}
+
+export async function getStripeConfigurationStatus(): Promise<StripeConfigurationStatus> {
+  const [plus, premium] = await Promise.all([
+    getStripePlanPriceStatus("plus"),
+    getStripePlanPriceStatus("premium"),
+  ]);
+
+  const priceIdsAreDifferent =
+    getMonthlyPriceId("plus") !==
+    getMonthlyPriceId("premium");
+
+  if (!priceIdsAreDifferent) {
+    console.error(
+      "Plus y Premium no pueden utilizar el mismo precio de Stripe.",
+    );
+  }
+
+  return {
+    connected:
+      plus.connected &&
+      premium.connected &&
+      priceIdsAreDifferent,
+    priceLabel: premium.priceLabel,
+    plans: {
+      plus,
+      premium,
+    },
+  };
 }

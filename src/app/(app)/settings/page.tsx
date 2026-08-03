@@ -19,7 +19,8 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const { databaseConnected, profile, user } = currentProfile;
+  const { databaseConnected, profile, user } =
+    currentProfile;
 
   const stripeConfiguration =
     await getStripeConfigurationStatus();
@@ -27,18 +28,38 @@ export default async function SettingsPage() {
   const provider =
     user.app_metadata.provider === "google"
       ? "Google"
-      : user.app_metadata.provider ?? "Desconocido";
+      : user.app_metadata.provider ??
+        "Desconocido";
+
+  const planLabel =
+    profile.plan === "premium"
+      ? "Premium"
+      : profile.plan === "plus"
+        ? "Plus"
+        : "Free";
+
+  const isPaidPlan = profile.plan !== "free";
+
+  const plusPriceLabel =
+    stripeConfiguration.plans.plus.priceLabel ??
+    "4,99 €/mes";
+
+  const premiumPriceLabel =
+    stripeConfiguration.plans.premium.priceLabel ??
+    "19,99 €/mes";
 
   const infrastructure = [
     ["Autenticación", "Conectada"],
     [
       "PostgreSQL",
-      databaseConnected ? "Perfil conectado" : "Perfil no disponible",
+      databaseConnected
+        ? "Perfil conectado"
+        : "Perfil no disponible",
     ],
     [
       "Stripe",
       stripeConfiguration.connected
-        ? "Precio conectado"
+        ? "Precios conectados"
         : "Configuración pendiente",
     ],
   ];
@@ -55,7 +76,8 @@ export default async function SettingsPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
-          Gestiona la información almacenada en el perfil de tu cuenta.
+          Gestiona la información almacenada en el
+          perfil de tu cuenta.
         </p>
       </header>
 
@@ -63,11 +85,14 @@ export default async function SettingsPage() {
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
           <div className="flex flex-col justify-between gap-6 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-medium">Perfil</h2>
+              <h2 className="text-lg font-medium">
+                Perfil
+              </h2>
 
               <p className="mt-2 text-sm text-neutral-600">
-                El nombre se almacena en PostgreSQL y puede editarse sin
-                modificar tu cuenta original de Google.
+                El nombre se almacena en PostgreSQL y
+                puede editarse sin modificar tu cuenta
+                original de Google.
               </p>
             </div>
 
@@ -99,46 +124,113 @@ export default async function SettingsPage() {
           </div>
 
           <p className="mt-6 text-xs leading-5 text-neutral-600">
-            El correo electrónico procede de Google y todavía no puede
-            modificarse desde esta aplicación.
+            El correo electrónico procede de Google y
+            todavía no puede modificarse desde esta
+            aplicación.
           </p>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
-          <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div>
               <h2 className="text-lg font-medium">
                 Plan y facturación
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-neutral-600">
-                {stripeConfiguration.connected &&
-                stripeConfiguration.priceLabel
-                  ? `Stripe está conectado al precio ${stripeConfiguration.priceLabel}.`
-                  : "Stripe todavía no ha podido validar el precio configurado."}
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-600">
+                {stripeConfiguration.connected
+                  ? "Stripe ha validado las tarifas mensuales de Plus y Premium."
+                  : "Stripe todavía no ha podido validar todas las tarifas configuradas."}
               </p>
             </div>
 
-            <div className="flex flex-col items-start gap-3 sm:items-end">
-              <span className="rounded-full border border-white/10 px-3 py-2 text-xs text-neutral-500">
-                Plan {profile.plan === "pro" ? "Pro" : "Free"}
-              </span>
-
-              {profile.plan === "pro" ? (
-                <button
-                  className="min-h-10 cursor-not-allowed rounded-xl border border-white/10 px-4 text-xs text-neutral-500"
-                  disabled
-                  type="button"
-                >
-                  Gestionar suscripción
-                </button>
-              ) : (
-                <CheckoutButton
-                  disabled={!stripeConfiguration.connected}
-                />
-              )}
-            </div>
+            <span className="w-fit rounded-full border border-white/10 px-3 py-2 text-xs text-neutral-500">
+              Plan {planLabel}
+            </span>
           </div>
+
+          {isPaidPlan ? (
+            <div className="mt-6 flex flex-col justify-between gap-4 rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-5 sm:flex-row sm:items-center">
+              <div>
+                <span className="text-sm font-medium text-neutral-200">
+                  Suscripción {planLabel}
+                </span>
+
+                <p className="mt-2 text-xs leading-5 text-neutral-600">
+                  Tu suscripción está gestionada mediante
+                  Stripe.
+                </p>
+              </div>
+
+              <button
+                className="min-h-10 cursor-not-allowed rounded-xl border border-white/10 px-4 text-xs text-neutral-500"
+                disabled
+                type="button"
+              >
+                Gestionar suscripción
+              </button>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <article className="flex flex-col rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-5">
+                <div>
+                  <span className="text-sm font-medium text-neutral-200">
+                    Plus
+                  </span>
+
+                  <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-white">
+                    {plusPriceLabel}
+                  </p>
+
+                  <p className="mt-3 text-xs leading-5 text-neutral-600">
+                    El nivel de entrada para usuarios que
+                    necesitan más capacidad que el plan
+                    gratuito.
+                  </p>
+                </div>
+
+                <div className="mt-6">
+                  <CheckoutButton
+                    disabled={
+                      !stripeConfiguration.plans.plus
+                        .connected
+                    }
+                    label="Elegir Plus"
+                    plan="plus"
+                  />
+                </div>
+              </article>
+
+              <article className="flex flex-col rounded-xl border border-white/15 bg-white/[0.035] p-5">
+                <div>
+                  <span className="text-sm font-medium text-neutral-200">
+                    Premium
+                  </span>
+
+                  <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-white">
+                    {premiumPriceLabel}
+                  </p>
+
+                  <p className="mt-3 text-xs leading-5 text-neutral-600">
+                    El nivel completo para usuarios que
+                    necesitan todas las funciones de la
+                    aplicación.
+                  </p>
+                </div>
+
+                <div className="mt-6">
+                  <CheckoutButton
+                    disabled={
+                      !stripeConfiguration.plans.premium
+                        .connected
+                    }
+                    label="Elegir Premium"
+                    plan="premium"
+                  />
+                </div>
+              </article>
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 sm:p-8">
@@ -147,34 +239,38 @@ export default async function SettingsPage() {
           </h2>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {infrastructure.map(([service, status]) => {
-              const isUnavailable =
-                status === "Configuración pendiente" ||
-                status === "Perfil no disponible";
+            {infrastructure.map(
+              ([service, status]) => {
+                const isUnavailable =
+                  status ===
+                    "Configuración pendiente" ||
+                  status ===
+                    "Perfil no disponible";
 
-              return (
-                <div
-                  className="rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-4"
-                  key={service}
-                >
-                  <span className="block text-xs text-neutral-600">
-                    {service}
-                  </span>
+                return (
+                  <div
+                    className="rounded-xl border border-white/[0.07] bg-[#0a0a0a] p-4"
+                    key={service}
+                  >
+                    <span className="block text-xs text-neutral-600">
+                      {service}
+                    </span>
 
-                  <span className="mt-3 flex items-center gap-2 text-sm text-neutral-300">
-                    <span
-                      className={`size-1.5 rounded-full ${
-                        isUnavailable
-                          ? "bg-neutral-600"
-                          : "bg-white"
-                      }`}
-                    />
+                    <span className="mt-3 flex items-center gap-2 text-sm text-neutral-300">
+                      <span
+                        className={`size-1.5 rounded-full ${
+                          isUnavailable
+                            ? "bg-neutral-600"
+                            : "bg-white"
+                        }`}
+                      />
 
-                    {status}
-                  </span>
-                </div>
-              );
-            })}
+                      {status}
+                    </span>
+                  </div>
+                );
+              },
+            )}
           </div>
         </section>
       </div>
