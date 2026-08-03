@@ -1,21 +1,148 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
-  --background-soft: #0b0b0b;
-  --surface: #111111;
-  --surface-light: #f4f4f2;
-  --foreground: #ffffff;
-  --foreground-dark: #111111;
-  --muted: #999999;
-  --muted-dark: #666666;
-  --border: rgba(255, 255, 255, 0.12);
-  --border-dark: rgba(0, 0, 0, 0.12);
   --container: 1200px;
   --radius-small: 12px;
   --radius-medium: 20px;
   --radius-large: 30px;
   --transition: 180ms ease;
+
+  /*
+   * Alias temporales para el CSS actual.
+   * Se retirarán cuando todos los componentes utilicen
+   * directamente los tokens semánticos.
+   */
+  --background: var(--theme-page);
+  --background-soft: var(--theme-page-soft);
+  --surface: var(--theme-surface);
+  --surface-light: var(--theme-contrast-surface);
+  --foreground: var(--theme-text);
+  --foreground-dark: var(--theme-contrast-text);
+  --muted: var(--theme-text-soft);
+  --muted-dark: var(--theme-contrast-muted);
+  --border: var(--theme-border);
+  --border-dark: var(--theme-contrast-border);
+}
+
+:root,
+html[data-theme="midnight"] {
+  color-scheme: dark;
+
+  --theme-page: #050505;
+  --theme-page-soft: #0b0b0b;
+  --theme-surface: #111111;
+  --theme-surface-hover: #171717;
+
+  --theme-text: #ffffff;
+  --theme-text-soft: #999999;
+  --theme-text-muted: #666666;
+
+  --theme-border: rgba(255, 255, 255, 0.12);
+  --theme-border-strong: rgba(255, 255, 255, 0.22);
+
+  --theme-accent: #ffffff;
+  --theme-accent-hover: #e9e9e9;
+  --theme-accent-text: #080808;
+
+  --theme-contrast-surface: #f4f4f2;
+  --theme-contrast-text: #111111;
+  --theme-contrast-muted: #666666;
+  --theme-contrast-border: rgba(0, 0, 0, 0.12);
+
+  --theme-header-background: rgba(5, 5, 5, 0.74);
+  --theme-selection-background: #ffffff;
+  --theme-selection-text: #000000;
+  --theme-danger: #fca5a5;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --theme-page: #f7f7f5;
+  --theme-page-soft: #eeeeea;
+  --theme-surface: #ffffff;
+  --theme-surface-hover: #f2f2ef;
+
+  --theme-text: #111111;
+  --theme-text-soft: #4f4f4f;
+  --theme-text-muted: #767676;
+
+  --theme-border: rgba(17, 17, 17, 0.12);
+  --theme-border-strong: rgba(17, 17, 17, 0.22);
+
+  --theme-accent: #111111;
+  --theme-accent-hover: #292929;
+  --theme-accent-text: #ffffff;
+
+  --theme-contrast-surface: #111111;
+  --theme-contrast-text: #ffffff;
+  --theme-contrast-muted: #a3a3a3;
+  --theme-contrast-border: rgba(255, 255, 255, 0.14);
+
+  --theme-header-background: rgba(247, 247, 245, 0.82);
+  --theme-selection-background: #111111;
+  --theme-selection-text: #ffffff;
+  --theme-danger: #b42318;
+}
+
+html[data-theme="violet"] {
+  color-scheme: dark;
+
+  --theme-page: #080812;
+  --theme-page-soft: #0e1020;
+  --theme-surface: #15172a;
+  --theme-surface-hover: #1b1e35;
+
+  --theme-text: #f8f8ff;
+  --theme-text-soft: #b0b2c4;
+  --theme-text-muted: #74778c;
+
+  --theme-border: rgba(203, 200, 255, 0.14);
+  --theme-border-strong: rgba(203, 200, 255, 0.24);
+
+  --theme-accent: #c4b5fd;
+  --theme-accent-hover: #d8ccff;
+  --theme-accent-text: #0b0a14;
+
+  --theme-contrast-surface: #eeecf8;
+  --theme-contrast-text: #171423;
+  --theme-contrast-muted: #696478;
+  --theme-contrast-border: rgba(23, 20, 35, 0.12);
+
+  --theme-header-background: rgba(8, 8, 18, 0.78);
+  --theme-selection-background: #c4b5fd;
+  --theme-selection-text: #0b0a14;
+  --theme-danger: #fda4af;
+}
+
+html[data-theme="forest"] {
+  color-scheme: dark;
+
+  --theme-page: #06100c;
+  --theme-page-soft: #0a1712;
+  --theme-surface: #10221a;
+  --theme-surface-hover: #163026;
+
+  --theme-text: #f5fbf7;
+  --theme-text-soft: #abc0b4;
+  --theme-text-muted: #71877a;
+
+  --theme-border: rgba(200, 235, 216, 0.13);
+  --theme-border-strong: rgba(200, 235, 216, 0.23);
+
+  --theme-accent: #c8e6d2;
+  --theme-accent-hover: #d9f0e0;
+  --theme-accent-text: #07100c;
+
+  --theme-contrast-surface: #eef4ef;
+  --theme-contrast-text: #102019;
+  --theme-contrast-muted: #637168;
+  --theme-contrast-border: rgba(16, 32, 25, 0.12);
+
+  --theme-header-background: rgba(6, 16, 12, 0.78);
+  --theme-selection-background: #c8e6d2;
+  --theme-selection-text: #07100c;
+  --theme-danger: #fda4af;
 }
 
 @layer base {
@@ -58,8 +185,8 @@
   }
 
   ::selection {
-    background: #ffffff;
-    color: #000000;
+    background: var(--theme-selection-background);
+    color: var(--theme-selection-text);
   }
 }
 

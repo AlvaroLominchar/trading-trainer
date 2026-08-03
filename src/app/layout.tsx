@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+} from "next/font/google";
+
+import { getThemePreset } from "@/config/theme";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,10 +31,20 @@ type RootLayoutProps = Readonly<{
   children: React.ReactNode;
 }>;
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({
+  children,
+}: RootLayoutProps) {
+  const themePreset = getThemePreset();
+
   return (
-    <html lang="es">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      data-scroll-behavior="smooth"
+      data-theme={themePreset}
+      lang="es"
+    >
+      <body
+        className={`${geistSans.variable} ${geistMono.variable}`}
+      >
         {children}
       </body>
     </html>

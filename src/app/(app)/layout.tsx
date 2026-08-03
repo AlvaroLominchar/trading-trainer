@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { AppNavigation } from "@/components/app/app-navigation";
 
 export const metadata: Metadata = {
   title: {
@@ -46,26 +47,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             </div>
           </Link>
 
-          <nav
-            className="mt-10 flex flex-col gap-2"
-            aria-label="Navegación de la aplicación"
-          >
-            <Link
-              className="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-neutral-200 transition hover:bg-white/10"
-              href="/dashboard"
-            >
-              <span className="size-1.5 rounded-full bg-white" />
-              Dashboard
-            </Link>
-
-            <Link
-              className="flex min-h-11 items-center gap-3 rounded-xl px-4 text-sm text-neutral-500 transition hover:bg-white/[0.06] hover:text-white"
-              href="/settings"
-            >
-              <span className="size-1.5 rounded-full bg-neutral-700" />
-              Configuración
-            </Link>
-          </nav>
+          <AppNavigation />
 
           <div className="mt-auto">
             <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
