@@ -150,6 +150,13 @@ async function synchronizeSubscription(
         ).toISOString()
       : null;
 
+  const cancelAt =
+    typeof subscription.cancel_at === "number"
+      ? new Date(
+          subscription.cancel_at * 1000,
+        ).toISOString()
+      : null;
+
   const eventCreatedAt = new Date(
     event.created * 1000,
   ).toISOString();
@@ -171,6 +178,7 @@ async function synchronizeSubscription(
       p_current_period_end: currentPeriodEnd,
       p_cancel_at_period_end:
         subscription.cancel_at_period_end,
+      p_cancel_at: cancelAt,
     },
   );
 
