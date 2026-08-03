@@ -1,11 +1,55 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-app-page: var(--theme-page);
+  --color-app-page-soft: var(--theme-page-soft);
+
+  --color-app-surface: var(--theme-surface);
+  --color-app-surface-hover: var(--theme-surface-hover);
+  --color-app-surface-subtle: var(--theme-surface-subtle);
+  --color-app-surface-active: var(--theme-surface-active);
+
+  --color-app-text: var(--theme-text);
+  --color-app-text-soft: var(--theme-text-soft);
+  --color-app-text-muted: var(--theme-text-muted);
+
+  --color-app-border: var(--theme-border);
+  --color-app-border-strong: var(--theme-border-strong);
+
+  --color-app-accent: var(--theme-accent);
+  --color-app-accent-hover: var(--theme-accent-hover);
+  --color-app-accent-text: var(--theme-accent-text);
+
+  --color-app-track: var(--theme-track);
+  --color-app-danger: var(--theme-danger);
+}
+
 :root {
   --container: 1200px;
   --radius-small: 12px;
   --radius-medium: 20px;
   --radius-large: 30px;
   --transition: 180ms ease;
+
+  /*
+   * Superficies translúcidas derivadas del acento del preset.
+   * Evitan repetir variantes específicas para cada tema.
+   */
+  --theme-surface-subtle: color-mix(
+    in srgb,
+    var(--theme-accent) 3.5%,
+    transparent
+  );
+  --theme-surface-active: color-mix(
+    in srgb,
+    var(--theme-accent) 6%,
+    transparent
+  );
+  --theme-track: color-mix(
+    in srgb,
+    var(--theme-accent) 10%,
+    transparent
+  );
 
   /*
    * Alias temporales para el CSS actual.

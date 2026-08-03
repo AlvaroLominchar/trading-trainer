@@ -43,8 +43,8 @@ export function AppNavigation() {
             aria-current={isActive ? "page" : undefined}
             className={`flex min-h-11 items-center gap-3 rounded-xl border px-4 text-sm transition ${
               isActive
-                ? "border-white/10 bg-white/[0.06] text-neutral-200 hover:bg-white/10"
-                : "border-transparent text-neutral-500 hover:bg-white/[0.06] hover:text-white"
+                ? "border-app-border bg-app-surface-active text-app-text hover:bg-app-surface-hover"
+                : "border-transparent text-app-text-muted hover:bg-app-surface-subtle hover:text-app-text"
             }`}
             href={item.href}
             key={item.href}
@@ -52,8 +52,8 @@ export function AppNavigation() {
             <span
               className={`size-1.5 rounded-full ${
                 isActive
-                  ? "bg-white"
-                  : "bg-neutral-700"
+                  ? "bg-app-accent"
+                  : "bg-app-text-muted"
               }`}
             />
 
