@@ -13,26 +13,32 @@ export const metadata: Metadata = {
 export default async function LoginPage() {
   const supabase = await createClient();
 
-  const { data: claimsData } = await supabase.auth.getClaims();
+  const { data: claimsData } =
+    await supabase.auth.getClaims();
 
   if (claimsData?.claims) {
     redirect("/dashboard");
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
+    <main className="min-h-screen bg-app-page text-app-text">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-6 sm:px-8">
         <header className="flex items-center justify-between">
-          <Link className="flex items-center gap-3" href="/">
-            <span className="grid size-9 place-items-center rounded-xl bg-white text-sm font-extrabold text-black">
+          <Link
+            className="flex items-center gap-3"
+            href="/"
+          >
+            <span className="grid size-9 place-items-center rounded-xl bg-app-accent text-sm font-extrabold text-app-accent-text">
               B
             </span>
 
-            <span className="text-sm font-semibold">Base</span>
+            <span className="text-sm font-semibold">
+              Base
+            </span>
           </Link>
 
           <Link
-            className="text-xs text-neutral-500 transition hover:text-white"
+            className="text-xs text-app-text-muted transition hover:text-app-text"
             href="/"
           >
             Volver a la web
@@ -42,29 +48,31 @@ export default async function LoginPage() {
         <section className="flex flex-1 items-center justify-center py-16">
           <div className="w-full max-w-md">
             <div className="mb-8 text-center">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
                 Acceso
               </span>
 
-              <h1 className="mt-4 text-4xl font-medium tracking-[-0.055em]">
+              <h1 className="mt-4 text-4xl font-medium tracking-[-0.055em] text-app-text">
                 Bienvenido de nuevo.
               </h1>
 
-              <p className="mt-4 text-sm leading-6 text-neutral-500">
-                Accede con tu cuenta de Google para entrar en la aplicación.
+              <p className="mt-4 text-sm leading-6 text-app-text-soft">
+                Accede con tu cuenta de Google para entrar
+                en la aplicación.
               </p>
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.035] p-6 shadow-2xl shadow-black sm:p-8">
-              <div className="mb-6 inline-flex rounded-full border border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-neutral-500">
+            <div className="rounded-[28px] border border-app-border bg-app-surface-subtle p-6 shadow-2xl sm:p-8">
+              <div className="mb-6 inline-flex rounded-full border border-app-border px-3 py-2 text-[9px] uppercase tracking-[0.14em] text-app-text-soft">
                 Acceso seguro
               </div>
 
               <GoogleSignInButton />
 
-              <p className="mt-6 text-center text-xs leading-5 text-neutral-700">
-                Al continuar, Google compartirá con la aplicación tu nombre,
-                correo electrónico e imagen de perfil.
+              <p className="mt-6 text-center text-xs leading-5 text-app-text-muted">
+                Al continuar, Google compartirá con la
+                aplicación tu nombre, correo electrónico e
+                imagen de perfil.
               </p>
             </div>
           </div>
