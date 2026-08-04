@@ -1,7 +1,10 @@
 export function HeroSection() {
   return (
     <section className="hero-section" id="inicio">
-      <div className="hero-background" aria-hidden="true" />
+      <div
+        aria-hidden="true"
+        className="hero-background"
+      />
 
       <div className="container hero-grid">
         <div className="hero-copy">
@@ -22,12 +25,18 @@ export function HeroSection() {
           </p>
 
           <div className="hero-actions">
-            <a className="button button-light" href="#base">
+            <a
+              className="button button-light"
+              href="#base"
+            >
               Explorar la plantilla
               <span aria-hidden="true">→</span>
             </a>
 
-            <a className="button button-dark" href="#proceso">
+            <a
+              className="button button-dark"
+              href="#proceso"
+            >
               Ver cómo funciona
             </a>
           </div>
@@ -43,12 +52,21 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div className="product-preview" aria-label="Vista previa del panel">
-          <div className="preview-glow" aria-hidden="true" />
+        <div
+          aria-label="Vista previa del panel"
+          className="product-preview"
+        >
+          <div
+            aria-hidden="true"
+            className="preview-glow"
+          />
 
           <div className="preview-window">
             <div className="preview-topbar">
-              <div className="window-controls" aria-hidden="true">
+              <div
+                aria-hidden="true"
+                className="window-controls"
+              >
                 <span />
                 <span />
                 <span />
@@ -79,12 +97,21 @@ export function HeroSection() {
               <div className="dashboard">
                 <div className="dashboard-header">
                   <div>
-                    <span className="dashboard-label">OVERVIEW</span>
+                    <span className="dashboard-label">
+                      OVERVIEW
+                    </span>
+
                     <h2>Buenas tardes, Álvaro</h2>
-                    <p>Todo está preparado para seguir construyendo.</p>
+
+                    <p>
+                      Todo está preparado para seguir construyendo.
+                    </p>
                   </div>
 
-                  <button className="mock-button" type="button">
+                  <button
+                    className="mock-button"
+                    type="button"
+                  >
                     Nuevo proyecto
                   </button>
                 </div>
@@ -116,10 +143,15 @@ export function HeroSection() {
                       <strong>Crecimiento mensual</strong>
                     </div>
 
-                    <span className="activity-period">12 meses</span>
+                    <span className="activity-period">
+                      12 meses
+                    </span>
                   </div>
 
-                  <div className="chart" aria-hidden="true">
+                  <div
+                    aria-hidden="true"
+                    className="chart"
+                  >
                     <div className="chart-grid">
                       <span />
                       <span />
@@ -128,9 +160,9 @@ export function HeroSection() {
                     </div>
 
                     <svg
-                      viewBox="0 0 600 180"
-                      role="presentation"
                       preserveAspectRatio="none"
+                      role="presentation"
+                      viewBox="0 0 600 180"
                     >
                       <defs>
                         <linearGradient
@@ -142,11 +174,14 @@ export function HeroSection() {
                         >
                           <stop
                             offset="0%"
-                            stopColor="rgba(255,255,255,0.28)"
+                            stopColor="var(--theme-accent)"
+                            stopOpacity="0.28"
                           />
+
                           <stop
                             offset="100%"
-                            stopColor="rgba(255,255,255,0)"
+                            stopColor="var(--theme-accent)"
+                            stopOpacity="0"
                           />
                         </linearGradient>
                       </defs>
