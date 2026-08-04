@@ -3,25 +3,25 @@ const features = [
     number: "01",
     title: "Autenticación preparada",
     description:
-      "Una base diseñada para incorporar cuentas de usuario, acceso con Google y protección de rutas privadas.",
+      "Acceso con Google, sesiones seguras y protección de rutas privadas mediante Supabase.",
   },
   {
     number: "02",
     title: "Pagos y suscripciones",
     description:
-      "Estructura pensada para añadir planes Free y Pro, pagos recurrentes y gestión de facturación.",
+      "Planes Free, Plus y Premium con Stripe Checkout, webhooks y portal de facturación.",
   },
   {
     number: "03",
     title: "Datos por usuario",
     description:
-      "Cada producto podrá almacenar información privada asociada de forma segura a cada cuenta.",
+      "Perfiles y datos privados en PostgreSQL, protegidos con políticas de seguridad por usuario.",
   },
   {
     number: "04",
     title: "Diseño reutilizable",
     description:
-      "Componentes visuales consistentes que podremos adaptar rápidamente a diferentes ideas de negocio.",
+      "Componentes consistentes y cuatro presets visuales que pueden adaptarse a cada nueva marca.",
   },
 ];
 
@@ -32,27 +32,36 @@ export function FeaturesSection() {
         <div className="section-heading">
           <div>
             <span className="section-kicker">LA BASE</span>
+
             <h2>Lo repetitivo, construido una sola vez.</h2>
           </div>
 
           <p>
-            Cada idea empezará con una infraestructura sólida. Así podremos
-            concentrar el esfuerzo en el producto y no en reconstruir siempre
-            las mismas piezas.
+            Cada idea comienza con una infraestructura sólida. Así podemos
+            concentrar el esfuerzo en el producto sin reconstruir siempre las
+            mismas piezas.
           </p>
         </div>
 
         <div className="features-grid">
           {features.map((feature) => (
-            <article className="feature-card" key={feature.number}>
-              <div className="feature-number">{feature.number}</div>
+            <article
+              className="feature-card"
+              key={feature.number}
+            >
+              <div className="feature-number">
+                {feature.number}
+              </div>
 
               <div>
                 <h3>{feature.title}</h3>
                 <p>{feature.description}</p>
               </div>
 
-              <span className="feature-arrow" aria-hidden="true">
+              <span
+                aria-hidden="true"
+                className="feature-arrow"
+              >
                 ↗
               </span>
             </article>
