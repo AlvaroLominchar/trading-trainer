@@ -5,6 +5,11 @@ import { BillingPortalButton } from "@/components/app/billing-portal-button";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
+import {
+  getPlanFallbackPriceLabel,
+  getPlanLabel,
+  hasMinimumPlan,
+} from "@/config/plans";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 import {
   getCurrentSubscription,
@@ -60,7 +65,7 @@ function getBillingDescription(
 
   if (subscription.isCancellationScheduled) {
     return cancellationDate
-      ? `Tu suscripción seguirá activa hasta el ${cancellationDate}. Después pasarás al plan Free.`
+      ? `Tu suscripción seguirá activa hasta el ${cancellationDate}. Después pasarás al plan ${getPlanLabel("free")}.`
       : "Tu suscripción tiene una cancelación programada y continuará activa hasta terminar el periodo actual.";
   }
 
@@ -126,20 +131,17 @@ export default async function SettingsPage() {
       : user.app_metadata.provider ??
         "Desconocido";
 
-  const planLabel =
-    profile.plan === "premium"
-      ? "Premium"
-      : profile.plan === "plus"
-        ? "Plus"
-        : "Free";
+  const plusPlanLabel = getPlanLabel("plus");
+  const premiumPlanLabel = getPlanLabel("premium");
+  const planLabel = getPlanLabel(profile.plan);
 
   const plusPriceLabel =
     stripeConfiguration.plans.plus.priceLabel ??
-    "4,99 €/mes";
+    getPlanFallbackPriceLabel("plus");
 
   const premiumPriceLabel =
     stripeConfiguration.plans.premium.priceLabel ??
-    "19,99 €/mes";
+    getPlanFallbackPriceLabel("premium");
 
   const billingDescription =
     getBillingDescription(currentSubscription);
@@ -159,13 +161,13 @@ export default async function SettingsPage() {
 
   const canChooseNewPlan =
     currentSubscription.available &&
-    profile.plan === "free" &&
+    !hasMinimumPlan(profile.plan, "plus") &&
     !shouldManageSubscription;
 
   const synchronizedPlanLabel =
-    synchronizedSubscription?.plan === "premium"
-      ? "Premium"
-      : "Plus";
+    synchronizedSubscription
+      ? getPlanLabel(synchronizedSubscription.plan)
+      : null;
 
   const billingStatusLabel =
     synchronizedSubscription
@@ -274,7 +276,7 @@ export default async function SettingsPage() {
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-app-text-muted">
                 {stripeConfiguration.connected
-                  ? "Stripe ha validado las tarifas mensuales de Plus y Premium."
+                  ? `Stripe ha validado las tarifas mensuales de ${plusPlanLabel} y ${premiumPlanLabel}.`
                   : "Stripe todavía no ha podido validar todas las tarifas configuradas."}
               </p>
             </div>
@@ -329,7 +331,7 @@ export default async function SettingsPage() {
               <article className="flex flex-col rounded-xl border border-app-border bg-app-page-soft p-5">
                 <div>
                   <span className="text-sm font-medium text-app-text">
-                    Plus
+                    {plusPlanLabel}
                   </span>
 
                   <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-app-text">
@@ -349,7 +351,7 @@ export default async function SettingsPage() {
                       !stripeConfiguration.plans.plus
                         .connected
                     }
-                    label="Elegir Plus"
+                    label={`Elegir ${plusPlanLabel}`}
                     plan="plus"
                   />
                 </div>
@@ -358,7 +360,7 @@ export default async function SettingsPage() {
               <article className="flex flex-col rounded-xl border border-app-border-strong bg-app-surface-active p-5">
                 <div>
                   <span className="text-sm font-medium text-app-text">
-                    Premium
+                    {premiumPlanLabel}
                   </span>
 
                   <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-app-text">
@@ -378,7 +380,7 @@ export default async function SettingsPage() {
                       !stripeConfiguration.plans.premium
                         .connected
                     }
-                    label="Elegir Premium"
+                    label={`Elegir ${premiumPlanLabel}`}
                     plan="premium"
                   />
                 </div>
@@ -401,6 +403,7 @@ export default async function SettingsPage() {
               </p>
             </div>
           )}
+
         </section>
 
         <section className="rounded-2xl border border-app-border bg-app-surface-subtle p-6 sm:p-8">

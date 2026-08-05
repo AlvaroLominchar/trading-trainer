@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import {
+  ACCOUNT_PLANS,
+  PLAN_CATALOG,
+  getPlanLabel,
+} from "@/config/plans";
 import { AppNavigation } from "@/components/app/app-navigation";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
@@ -28,19 +33,12 @@ export default async function AppLayout({
 
   const { profile } = currentProfile;
 
-  const planLabel =
-    profile.plan === "premium"
-      ? "Premium"
-      : profile.plan === "plus"
-        ? "Plus"
-        : "Free";
+  const planLabel = getPlanLabel(profile.plan);
 
-  const planProgressWidth =
-    profile.plan === "premium"
-      ? "w-full"
-      : profile.plan === "plus"
-        ? "w-2/3"
-        : "w-1/3";
+  const planProgressPercentage =
+    ((PLAN_CATALOG[profile.plan].rank + 1) /
+      ACCOUNT_PLANS.length) *
+    100;
 
   return (
     <div className="min-h-screen bg-app-page text-app-text">
@@ -106,7 +104,10 @@ export default async function AppLayout({
 
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-app-track">
                 <div
-                  className={`h-full rounded-full bg-app-accent ${planProgressWidth}`}
+                  className="h-full rounded-full bg-app-accent"
+                  style={{
+                    width: `${planProgressPercentage}%`,
+                  }}
                 />
               </div>
 
