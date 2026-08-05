@@ -4,11 +4,14 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import {
+  isPaidPlan,
+  type PaidPlan,
+} from "@/config/plans";
 import { isCheckoutBlockingSubscriptionStatus } from "@/lib/billing/subscription-status";
 import {
   getMonthlyPriceId,
   getStripeClient,
-  type PaidPlan,
 } from "@/lib/stripe/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -37,11 +40,7 @@ function getFirstHeaderValue(value: string | null) {
 function getRequestedPaidPlan(
   value: FormDataEntryValue | null,
 ): PaidPlan | null {
-  if (value === "plus" || value === "premium") {
-    return value;
-  }
-
-  return null;
+  return isPaidPlan(value) ? value : null;
 }
 
 async function getApplicationUrl() {
@@ -211,10 +210,7 @@ export async function createCheckoutSession(
     };
   }
 
-  if (
-    profile.plan === "plus" ||
-    profile.plan === "premium"
-  ) {
+  if (isPaidPlan(profile.plan)) {
     return {
       status: "error",
       message:

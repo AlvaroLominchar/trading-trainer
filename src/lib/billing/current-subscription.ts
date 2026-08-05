@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { PaidPlan } from "@/config/plans";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { PaidPlan } from "@/lib/stripe/server";
 
 type DatabaseSubscription = {
   plan: PaidPlan;

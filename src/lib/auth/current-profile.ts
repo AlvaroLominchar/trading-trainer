@@ -1,27 +1,12 @@
+import { normalizeAccountPlan } from "@/config/plans";
 import { getUserProfile } from "@/lib/auth/user-profile";
 import { createClient } from "@/lib/supabase/server";
-
-export type AccountPlan = "free" | "plus" | "premium";
 
 type DatabaseProfile = {
   full_name: string | null;
   avatar_url: string | null;
   plan: string;
 };
-
-function normalizeAccountPlan(
-  databasePlan: string | undefined,
-): AccountPlan {
-  if (databasePlan === "plus") {
-    return "plus";
-  }
-
-  if (databasePlan === "premium") {
-    return "premium";
-  }
-
-  return "free";
-}
 
 export async function getCurrentProfile() {
   const supabase = await createClient();

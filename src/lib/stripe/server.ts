@@ -2,18 +2,16 @@ import "server-only";
 
 import Stripe from "stripe";
 
-export type PaidPlan = "plus" | "premium";
+import {
+  getExpectedMonthlyAmount,
+  type PaidPlan,
+} from "@/config/plans";
 
 type StripeEnvironmentVariable =
   | "STRIPE_SECRET_KEY"
   | "STRIPE_PRICE_PLUS_MONTHLY"
   | "STRIPE_PRICE_PREMIUM_MONTHLY"
   | "STRIPE_WEBHOOK_SECRET";
-
-const EXPECTED_MONTHLY_AMOUNTS: Record<PaidPlan, number> = {
-  plus: 499,
-  premium: 1999,
-};
 
 function getRequiredEnvironmentVariable(
   name: StripeEnvironmentVariable,
@@ -100,7 +98,7 @@ async function getStripePlanPriceStatus(
     const recurring = price.recurring;
     const unitAmount = price.unit_amount;
     const expectedUnitAmount =
-      EXPECTED_MONTHLY_AMOUNTS[plan];
+      getExpectedMonthlyAmount(plan);
 
     if (
       !price.active ||
