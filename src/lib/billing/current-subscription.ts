@@ -1,8 +1,10 @@
 import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { PaidPlan } from "@/lib/stripe/server";
 
 type DatabaseSubscription = {
+  plan: PaidPlan;
   status: string;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
@@ -10,6 +12,7 @@ type DatabaseSubscription = {
 };
 
 export type CurrentSubscriptionSummary = {
+  plan: PaidPlan;
   status: string;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
@@ -32,6 +35,7 @@ export async function getCurrentSubscription(
     .from("subscriptions")
     .select(
       [
+        "plan",
         "status",
         "current_period_end",
         "cancel_at_period_end",
@@ -69,6 +73,7 @@ export async function getCurrentSubscription(
   return {
     available: true,
     subscription: {
+      plan: data.plan,
       status: data.status,
       currentPeriodEnd: data.current_period_end,
       cancelAtPeriodEnd: data.cancel_at_period_end,

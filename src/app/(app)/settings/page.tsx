@@ -10,6 +10,11 @@ import {
   getCurrentSubscription,
   type CurrentSubscriptionResult,
 } from "@/lib/billing/current-subscription";
+import {
+  getSubscriptionStatusLabel,
+  isCheckoutBlockingSubscriptionStatus,
+  subscriptionRequiresBillingAttention,
+} from "@/lib/billing/subscription-status";
 import { getStripeConfigurationStatus } from "@/lib/stripe/server";
 
 export const metadata: Metadata = {
@@ -75,22 +80,22 @@ function getBillingDescription(
         : "La suscripción se encuentra en periodo de prueba.";
 
     case "past_due":
-      return "Stripe no ha podido completar el último cobro. Revisa el método de pago.";
+      return "Stripe no ha podido completar el último cobro. Conservas el acceso mientras se intenta recuperar el pago.";
 
     case "unpaid":
-      return "La suscripción tiene un pago pendiente. Revisa la facturación en Stripe.";
+      return "La suscripción tiene un pago pendiente y el acceso de pago está desactivado. Revisa la facturación en Stripe.";
 
     case "paused":
-      return "La suscripción se encuentra temporalmente pausada.";
+      return "La suscripción se encuentra pausada y el acceso de pago está desactivado.";
 
     case "incomplete":
-      return "La activación de la suscripción todavía no se ha completado.";
+      return "La activación de la suscripción no se ha completado. Revisa la facturación antes de volver a intentarlo.";
 
     case "incomplete_expired":
-      return "El intento de activar la suscripción ha caducado.";
+      return "El intento de activar la suscripción ha caducado. Puedes iniciar una nueva suscripción.";
 
     case "canceled":
-      return "La suscripción figura como cancelada en Stripe.";
+      return "La suscripción está cancelada. Puedes elegir un nuevo plan cuando quieras.";
 
     default:
       return "Consulta Stripe para revisar el estado actual de la suscripción.";
@@ -128,8 +133,6 @@ export default async function SettingsPage() {
         ? "Plus"
         : "Free";
 
-  const isPaidPlan = profile.plan !== "free";
-
   const plusPriceLabel =
     stripeConfiguration.plans.plus.priceLabel ??
     "4,99 €/mes";
@@ -141,9 +144,44 @@ export default async function SettingsPage() {
   const billingDescription =
     getBillingDescription(currentSubscription);
 
+  const synchronizedSubscription =
+    currentSubscription.subscription;
+
   const hasScheduledCancellation =
-    currentSubscription.subscription
+    synchronizedSubscription
       ?.isCancellationScheduled === true;
+
+  const shouldManageSubscription =
+    synchronizedSubscription !== null &&
+    isCheckoutBlockingSubscriptionStatus(
+      synchronizedSubscription.status,
+    );
+
+  const canChooseNewPlan =
+    currentSubscription.available &&
+    profile.plan === "free" &&
+    !shouldManageSubscription;
+
+  const synchronizedPlanLabel =
+    synchronizedSubscription?.plan === "premium"
+      ? "Premium"
+      : "Plus";
+
+  const billingStatusLabel =
+    synchronizedSubscription
+      ? getSubscriptionStatusLabel(
+          synchronizedSubscription.status,
+          synchronizedSubscription
+            .isCancellationScheduled,
+        )
+      : null;
+
+  const billingNeedsAttention =
+    synchronizedSubscription
+      ? subscriptionRequiresBillingAttention(
+          synchronizedSubscription.status,
+        )
+      : false;
 
   const infrastructure = [
     ["Autenticación", "Conectada"],
@@ -246,24 +284,30 @@ export default async function SettingsPage() {
             </span>
           </div>
 
-          {isPaidPlan ? (
+          {shouldManageSubscription &&
+          synchronizedSubscription ? (
             <div className="mt-6 flex flex-col justify-between gap-5 rounded-xl border border-app-border bg-app-page-soft p-5 sm:flex-row sm:items-center">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium text-app-text">
-                    Suscripción {planLabel}
+                    Suscripción {synchronizedPlanLabel}
                   </span>
 
-                  <span className="rounded-full border border-app-border px-2.5 py-1 text-[10px] text-app-text-soft">
-                    {hasScheduledCancellation
-                      ? "Cancelación programada"
-                      : "Renovación automática"}
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] ${
+                      billingNeedsAttention
+                        ? "border-app-border-strong text-app-text-soft"
+                        : "border-app-border text-app-text-soft"
+                    }`}
+                  >
+                    {billingStatusLabel}
                   </span>
                 </div>
 
                 <p
                   className={`mt-3 max-w-xl text-xs leading-5 ${
-                    hasScheduledCancellation
+                    hasScheduledCancellation ||
+                    billingNeedsAttention
                       ? "text-app-text-soft"
                       : "text-app-text-muted"
                   }`}
@@ -272,9 +316,15 @@ export default async function SettingsPage() {
                 </p>
               </div>
 
-              <BillingPortalButton />
+              <BillingPortalButton
+                label={
+                  billingNeedsAttention
+                    ? "Revisar facturación"
+                    : "Gestionar suscripción"
+                }
+              />
             </div>
-          ) : (
+          ) : canChooseNewPlan ? (
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <article className="flex flex-col rounded-xl border border-app-border bg-app-page-soft p-5">
                 <div>
@@ -333,6 +383,22 @@ export default async function SettingsPage() {
                   />
                 </div>
               </article>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-app-border bg-app-page-soft p-5">
+              <span className="text-sm font-medium text-app-text">
+                Estado de facturación no disponible
+              </span>
+
+              <p className="mt-3 max-w-xl text-xs leading-5 text-app-text-soft">
+                {billingDescription}
+              </p>
+
+              <p className="mt-2 max-w-xl text-xs leading-5 text-app-text-muted">
+                No se ofrecerá una nueva compra hasta poder
+                verificar de forma segura el estado de la
+                suscripción.
+              </p>
             </div>
           )}
         </section>

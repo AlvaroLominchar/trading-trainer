@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { isCheckoutBlockingSubscriptionStatus } from "@/lib/billing/subscription-status";
 import {
   getMonthlyPriceId,
   getStripeClient,
@@ -28,15 +29,6 @@ export type CreateBillingPortalState = {
 };
 
 export type CheckoutPlan = PaidPlan;
-
-const NON_TERMINAL_SUBSCRIPTION_STATUSES = new Set([
-  "incomplete",
-  "trialing",
-  "active",
-  "past_due",
-  "unpaid",
-  "paused",
-]);
 
 function getFirstHeaderValue(value: string | null) {
   return value?.split(",")[0]?.trim() || null;
@@ -256,7 +248,7 @@ export async function createCheckoutSession(
 
   if (
     existingSubscription &&
-    NON_TERMINAL_SUBSCRIPTION_STATUSES.has(
+    isCheckoutBlockingSubscriptionStatus(
       existingSubscription.status,
     )
   ) {

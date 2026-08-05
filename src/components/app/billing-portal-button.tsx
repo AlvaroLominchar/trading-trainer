@@ -12,7 +12,13 @@ const initialState: CreateBillingPortalState = {
   message: "",
 };
 
-export function BillingPortalButton() {
+type BillingPortalButtonProps = {
+  label?: string;
+};
+
+export function BillingPortalButton({
+  label = "Gestionar suscripción",
+}: BillingPortalButtonProps) {
   const [state, formAction, isPending] = useActionState(
     createBillingPortalSession,
     initialState,
@@ -25,9 +31,7 @@ export function BillingPortalButton() {
         disabled={isPending}
         type="submit"
       >
-        {isPending
-          ? "Abriendo..."
-          : "Gestionar suscripción"}
+        {isPending ? "Abriendo..." : label}
       </button>
 
       {state.message ? (
