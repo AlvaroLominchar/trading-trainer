@@ -14,6 +14,8 @@ const SUPPORTED_EVENTS = new Set([
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
   "invoice.paid",
   "invoice.payment_failed",
 ]);
@@ -38,9 +40,12 @@ function getStripeObjectId(value: unknown) {
   return null;
 }
 
-function getInvoiceSubscriptionId(invoice: Stripe.Invoice) {
+function getInvoiceSubscriptionId(
+  invoice: Stripe.Invoice,
+) {
   const currentSubscriptionId = getStripeObjectId(
-    invoice.parent?.subscription_details?.subscription,
+    invoice.parent?.subscription_details
+      ?.subscription,
   );
 
   if (currentSubscriptionId) {
@@ -48,29 +53,36 @@ function getInvoiceSubscriptionId(invoice: Stripe.Invoice) {
   }
 
   /*
-   * Compatibilidad con eventos generados usando versiones anteriores
-   * de la API de Stripe, donde la suscripción podía estar directamente
-   * en invoice.subscription.
+   * Compatibilidad con eventos creados usando versiones
+   * anteriores de la API de Stripe.
    */
   const legacyInvoice = invoice as Stripe.Invoice & {
     subscription?: unknown;
   };
 
-  return getStripeObjectId(legacyInvoice.subscription);
+  return getStripeObjectId(
+    legacyInvoice.subscription,
+  );
 }
 
-function getSubscriptionIdFromEvent(event: Stripe.Event) {
+function getSubscriptionIdFromEvent(
+  event: Stripe.Event,
+) {
   switch (event.type) {
     case "checkout.session.completed": {
       const checkoutSession =
         event.data.object as Stripe.Checkout.Session;
 
-      return getStripeObjectId(checkoutSession.subscription);
+      return getStripeObjectId(
+        checkoutSession.subscription,
+      );
     }
 
     case "customer.subscription.created":
     case "customer.subscription.updated":
-    case "customer.subscription.deleted": {
+    case "customer.subscription.deleted":
+    case "customer.subscription.paused":
+    case "customer.subscription.resumed": {
       const subscription =
         event.data.object as Stripe.Subscription;
 
@@ -79,7 +91,8 @@ function getSubscriptionIdFromEvent(event: Stripe.Event) {
 
     case "invoice.paid":
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice;
+      const invoice =
+        event.data.object as Stripe.Invoice;
 
       return getInvoiceSubscriptionId(invoice);
     }
@@ -96,17 +109,21 @@ async function synchronizeSubscription(
   const stripe = getStripeClient();
 
   /*
-   * Recuperamos siempre el estado actual de Stripe en lugar de confiar
-   * exclusivamente en el payload del evento. Los webhooks pueden llegar
-   * desordenados.
+   * Recuperamos siempre el estado actual de Stripe.
+   * Los webhooks pueden llegar repetidos o desordenados.
    */
   const subscription =
-    await stripe.subscriptions.retrieve(subscriptionId);
+    await stripe.subscriptions.retrieve(
+      subscriptionId,
+    );
 
-  const subscriptionItem = subscription.items.data.find(
-    (item) =>
-      getPaidPlanFromPriceId(item.price.id) !== null,
-  );
+  const subscriptionItem =
+    subscription.items.data.find(
+      (item) =>
+        getPaidPlanFromPriceId(
+          item.price.id,
+        ) !== null,
+    );
 
   if (!subscriptionItem) {
     throw new Error(
@@ -143,10 +160,16 @@ async function synchronizeSubscription(
     );
   }
 
+  const subscriptionCreatedAt = new Date(
+    subscription.created * 1000,
+  ).toISOString();
+
   const currentPeriodEnd =
-    typeof subscriptionItem.current_period_end === "number"
+    typeof subscriptionItem.current_period_end ===
+    "number"
       ? new Date(
-          subscriptionItem.current_period_end * 1000,
+          subscriptionItem.current_period_end *
+            1000,
         ).toISOString()
       : null;
 
@@ -161,26 +184,33 @@ async function synchronizeSubscription(
     event.created * 1000,
   ).toISOString();
 
-  const supabaseAdmin = getSupabaseAdminClient();
+  const supabaseAdmin =
+    getSupabaseAdminClient();
 
-  const { data: processed, error } = await supabaseAdmin.rpc(
-    "sync_stripe_subscription",
-    {
-      p_event_id: event.id,
-      p_event_type: event.type,
-      p_event_created_at: eventCreatedAt,
-      p_user_id: userId,
-      p_stripe_customer_id: customerId,
-      p_stripe_subscription_id: subscription.id,
-      p_stripe_price_id: subscriptionItem.price.id,
-      p_status: subscription.status,
-      p_plan: plan,
-      p_current_period_end: currentPeriodEnd,
-      p_cancel_at_period_end:
-        subscription.cancel_at_period_end,
-      p_cancel_at: cancelAt,
-    },
-  );
+  const { data: processed, error } =
+    await supabaseAdmin.rpc(
+      "sync_stripe_subscription",
+      {
+        p_event_id: event.id,
+        p_event_type: event.type,
+        p_event_created_at: eventCreatedAt,
+        p_user_id: userId,
+        p_stripe_customer_id: customerId,
+        p_stripe_subscription_id:
+          subscription.id,
+        p_subscription_created_at:
+          subscriptionCreatedAt,
+        p_stripe_price_id:
+          subscriptionItem.price.id,
+        p_plan: plan,
+        p_status: subscription.status,
+        p_current_period_end:
+          currentPeriodEnd,
+        p_cancel_at_period_end:
+          subscription.cancel_at_period_end,
+        p_cancel_at: cancelAt,
+      },
+    );
 
   if (error) {
     throw new Error(
@@ -192,9 +222,8 @@ async function synchronizeSubscription(
 }
 
 export async function POST(request: Request) {
-  const stripeSignature = request.headers.get(
-    "stripe-signature",
-  );
+  const stripeSignature =
+    request.headers.get("stripe-signature");
 
   if (!stripeSignature) {
     return new Response(
@@ -206,19 +235,20 @@ export async function POST(request: Request) {
   }
 
   /*
-   * Es imprescindible leer el cuerpo como texto sin convertirlo
-   * previamente a JSON para verificar correctamente la firma.
+   * El cuerpo debe leerse sin convertirlo antes a JSON
+   * para que Stripe pueda verificar la firma.
    */
   const rawBody = await request.text();
 
   let event: Stripe.Event;
 
   try {
-    event = getStripeClient().webhooks.constructEvent(
-      rawBody,
-      stripeSignature,
-      getStripeWebhookSecret(),
-    );
+    event =
+      getStripeClient().webhooks.constructEvent(
+        rawBody,
+        stripeSignature,
+        getStripeWebhookSecret(),
+      );
   } catch (error) {
     console.error(
       "Stripe webhook signature verification failed:",
@@ -257,10 +287,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const processed = await synchronizeSubscription(
-      event,
-      subscriptionId,
-    );
+    const processed =
+      await synchronizeSubscription(
+        event,
+        subscriptionId,
+      );
 
     return Response.json({
       received: true,
