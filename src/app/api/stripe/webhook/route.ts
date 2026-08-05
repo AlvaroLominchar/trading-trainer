@@ -5,6 +5,7 @@ import {
   getPaidPlanFromPriceId,
   getStripeClient,
   getStripeWebhookSecret,
+  isStripeResourceMissingError,
 } from "@/lib/stripe/server";
 
 export const runtime = "nodejs";
@@ -52,10 +53,6 @@ function getInvoiceSubscriptionId(
     return currentSubscriptionId;
   }
 
-  /*
-   * Compatibilidad con eventos creados usando versiones
-   * anteriores de la API de Stripe.
-   */
   const legacyInvoice = invoice as Stripe.Invoice & {
     subscription?: unknown;
   };
@@ -102,18 +99,39 @@ function getSubscriptionIdFromEvent(
   }
 }
 
+async function getCurrentStripeSubscription(
+  event: Stripe.Event,
+  subscriptionId: string,
+) {
+  try {
+    return await getStripeClient().subscriptions.retrieve(
+      subscriptionId,
+    );
+  } catch (error) {
+    if (
+      event.type ===
+        "customer.subscription.deleted" &&
+      isStripeResourceMissingError(error)
+    ) {
+      return event.data.object as Stripe.Subscription;
+    }
+
+    throw error;
+  }
+}
+
 async function synchronizeSubscription(
   event: Stripe.Event,
   subscriptionId: string,
 ) {
-  const stripe = getStripeClient();
-
   /*
    * Recuperamos siempre el estado actual de Stripe.
-   * Los webhooks pueden llegar repetidos o desordenados.
+   * Para una eliminación ya purgada, el payload del evento
+   * deleted es la fuente final disponible.
    */
   const subscription =
-    await stripe.subscriptions.retrieve(
+    await getCurrentStripeSubscription(
+      event,
       subscriptionId,
     );
 
@@ -234,10 +252,6 @@ export async function POST(request: Request) {
     );
   }
 
-  /*
-   * El cuerpo debe leerse sin convertirlo antes a JSON
-   * para que Stripe pueda verificar la firma.
-   */
   const rawBody = await request.text();
 
   let event: Stripe.Event;

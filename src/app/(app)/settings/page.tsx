@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { BillingPortalButton } from "@/components/app/billing-portal-button";
 import { CheckoutButton } from "@/components/app/checkout-button";
+import { DeleteAccountForm } from "@/components/app/delete-account-form";
 import { ProfileForm } from "@/components/app/profile-form";
 import { UserAvatar } from "@/components/app/user-avatar";
 import {
@@ -132,7 +133,8 @@ export default async function SettingsPage() {
         "Desconocido";
 
   const plusPlanLabel = getPlanLabel("plus");
-  const premiumPlanLabel = getPlanLabel("premium");
+  const premiumPlanLabel =
+    getPlanLabel("premium");
   const planLabel = getPlanLabel(profile.plan);
 
   const plusPriceLabel =
@@ -403,7 +405,6 @@ export default async function SettingsPage() {
               </p>
             </div>
           )}
-
         </section>
 
         <section className="rounded-2xl border border-app-border bg-app-surface-subtle p-6 sm:p-8">
@@ -445,6 +446,25 @@ export default async function SettingsPage() {
               },
             )}
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-app-border-strong bg-app-surface-subtle p-6 sm:p-8">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-danger">
+            Zona de riesgo
+          </span>
+
+          <h2 className="mt-3 text-lg font-medium text-app-text">
+            Eliminar cuenta
+          </h2>
+
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-app-text-muted">
+            Esta acción cancela la facturación, elimina
+            el usuario de autenticación y borra mediante
+            cascada el perfil y la suscripción
+            sincronizada. No se puede deshacer.
+          </p>
+
+          <DeleteAccountForm />
         </section>
       </div>
     </main>

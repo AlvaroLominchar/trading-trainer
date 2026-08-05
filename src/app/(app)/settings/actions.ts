@@ -12,6 +12,7 @@ import { isCheckoutBlockingSubscriptionStatus } from "@/lib/billing/subscription
 import {
   getMonthlyPriceId,
   getStripeClient,
+  isStripeResourceMissingError,
 } from "@/lib/stripe/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -31,7 +32,14 @@ export type CreateBillingPortalState = {
   message: string;
 };
 
+export type DeleteAccountState = {
+  status: "idle" | "error";
+  message: string;
+};
+
 export type CheckoutPlan = PaidPlan;
+
+const DELETE_ACCOUNT_CONFIRMATION = "ELIMINAR";
 
 function getFirstHeaderValue(value: string | null) {
   return value?.split(",")[0]?.trim() || null;
@@ -418,4 +426,121 @@ export async function createBillingPortalSession(
   }
 
   redirect(portalUrl);
+}
+
+export async function deleteAccount(
+  _previousState: DeleteAccountState,
+  formData: FormData,
+): Promise<DeleteAccountState> {
+  void _previousState;
+
+  const confirmation = formData.get("confirmation");
+
+  if (
+    typeof confirmation !== "string" ||
+    confirmation.trim() !==
+      DELETE_ACCOUNT_CONFIRMATION
+  ) {
+    return {
+      status: "error",
+      message:
+        "La confirmación no coincide. Escribe ELIMINAR.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return {
+      status: "error",
+      message:
+        "Tu sesión no es válida. Vuelve a iniciar sesión.",
+    };
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+
+  const {
+    data: subscription,
+    error: subscriptionError,
+  } = await supabaseAdmin
+    .from("subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    console.error(
+      "Subscription lookup before account deletion failed:",
+      subscriptionError,
+    );
+
+    return {
+      status: "error",
+      message:
+        "No se pudo comprobar la facturación. La cuenta no se ha eliminado.",
+    };
+  }
+
+  const stripeCustomerId =
+    subscription?.stripe_customer_id?.trim();
+
+  if (stripeCustomerId) {
+    try {
+      await getStripeClient().customers.del(
+        stripeCustomerId,
+      );
+    } catch (error) {
+      if (!isStripeResourceMissingError(error)) {
+        console.error(
+          "Stripe customer deletion failed:",
+          error,
+        );
+
+        return {
+          status: "error",
+          message:
+            "No se pudo cancelar la facturación. La cuenta no se ha eliminado.",
+        };
+      }
+    }
+  }
+
+  const { error: deleteUserError } =
+    await supabaseAdmin.auth.admin.deleteUser(
+      user.id,
+      false,
+    );
+
+  if (deleteUserError) {
+    console.error(
+      "Supabase user deletion failed:",
+      deleteUserError,
+    );
+
+    return {
+      status: "error",
+      message:
+        "La facturación quedó cancelada, pero no se pudo eliminar la cuenta. Vuelve a intentarlo.",
+    };
+  }
+
+  const { error: signOutError } =
+    await supabase.auth.signOut({
+      scope: "local",
+    });
+
+  if (signOutError) {
+    console.error(
+      "Local sign-out after account deletion failed:",
+      signOutError,
+    );
+  }
+
+  redirect("/account-deleted");
 }

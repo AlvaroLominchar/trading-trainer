@@ -69,6 +69,17 @@ export function getStripeWebhookSecret() {
   );
 }
 
+export function isStripeResourceMissingError(
+  error: unknown,
+) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "resource_missing"
+  );
+}
+
 export type StripePlanPriceStatus = {
   connected: boolean;
   priceLabel: string | null;
