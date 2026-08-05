@@ -6,6 +6,7 @@ type DatabaseProfile = {
   full_name: string | null;
   avatar_url: string | null;
   plan: string;
+  onboarding_completed_at: string | null;
 };
 
 export async function getCurrentProfile() {
@@ -26,7 +27,14 @@ export async function getCurrentProfile() {
     error,
   } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url, plan")
+    .select(
+      [
+        "full_name",
+        "avatar_url",
+        "plan",
+        "onboarding_completed_at",
+      ].join(", "),
+    )
     .eq("id", user.id)
     .maybeSingle<DatabaseProfile>();
 
@@ -59,6 +67,10 @@ export async function getCurrentProfile() {
       avatarUrl,
       initial,
       plan,
+      onboardingCompleted:
+        databaseProfile === null ||
+        databaseProfile === undefined ||
+        databaseProfile.onboarding_completed_at !== null,
     },
   };
 }

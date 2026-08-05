@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { OnboardingCard } from "@/components/app/onboarding-card";
 import { UserAvatar } from "@/components/app/user-avatar";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Panel principal provisional de la plantilla SaaS.",
+  description:
+    "Panel principal provisional de la plantilla SaaS.",
 };
 
 const metrics = [
@@ -67,7 +69,8 @@ export default async function DashboardPage() {
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Tu cuenta está autenticada y preparada para seguir construyendo.
+            Tu cuenta está autenticada y preparada para
+            seguir construyendo.
           </p>
         </div>
 
@@ -101,6 +104,12 @@ export default async function DashboardPage() {
           </button>
         </div>
       </header>
+
+      {!profile.onboardingCompleted ? (
+        <OnboardingCard
+          firstName={profile.firstName}
+        />
+      ) : null}
 
       <div className="mt-8 inline-flex rounded-full border border-app-border bg-app-surface-subtle px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
         Métricas de demostración
