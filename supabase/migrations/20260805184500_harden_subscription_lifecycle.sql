@@ -219,17 +219,35 @@ as $$
     p_stripe_subscription_id,
 
     coalesce(
-      (
-        select
-          subscriptions.stripe_subscription_created_at
-        from public.subscriptions as subscriptions
-        where
-          subscriptions.user_id = p_user_id
-          and
-          subscriptions.stripe_subscription_id =
-            p_stripe_subscription_id
-      ),
-      p_event_created_at
+        (
+            select
+            subscriptions.stripe_subscription_created_at
+            from public.subscriptions as subscriptions
+            where
+            subscriptions.user_id = p_user_id
+            and
+            subscriptions.stripe_subscription_id =
+                p_stripe_subscription_id
+        ),
+        (
+            select
+            case
+                when subscriptions.status in (
+                'canceled',
+                'incomplete_expired'
+                )
+                and p_event_type in (
+                'checkout.session.completed',
+                'customer.subscription.created'
+                )
+                then p_event_created_at
+
+                else '-infinity'::timestamptz
+            end
+            from public.subscriptions as subscriptions
+            where subscriptions.user_id = p_user_id
+        ),
+        p_event_created_at
     ),
 
     p_stripe_price_id,
