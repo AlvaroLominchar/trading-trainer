@@ -65,6 +65,7 @@ La aplicación estará disponible en `http://localhost:3000`.
 | Variable | Exposición | Descripción |
 |---|---|---|
 | `APP_THEME` | Servidor | Preset visual: `midnight`, `light`, `violet` o `forest`. |
+| `NEXT_PUBLIC_SITE_URL` | Pública | URL canónica del entorno, sin barra final. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Pública | URL del proyecto de Supabase. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Pública | Clave publicable de Supabase para navegador y SSR. |
 | `SUPABASE_SECRET_KEY` | Secreta | Clave administrativa usada exclusivamente en servidor. |
@@ -361,6 +362,25 @@ src/lib/auth/current-profile.ts
 src/lib/auth/plan-access.ts
 supabase/migrations/
 ```
+
+## Documentos legales provisionales
+
+La plantilla incluye rutas públicas de ejemplo:
+
+```text
+/legal
+/privacy
+/terms
+/cookies
+```
+
+Todos los campos entre corchetes deben sustituirse. Los textos son una estructura técnica provisional y no constituyen asesoramiento legal. Antes de producción revisa identidad del titular, bases jurídicas, conservación, transferencias, condiciones comerciales, cancelaciones, reembolsos, cookies y jurisdicción.
+
+## SEO y seguridad HTTP
+
+`NEXT_PUBLIC_SITE_URL` se utiliza para `metadataBase`, `robots.txt` y `sitemap.xml`. Configura el dominio exacto de cada entorno sin barra final.
+
+`next.config.ts` desactiva `x-powered-by` y añade CSP, protección contra framing, política de referencias, restricciones de permisos, HSTS en producción y otras cabeceras defensivas. Revisa la CSP cuando añadas analítica, scripts, imágenes, fuentes, iframes o nuevos proveedores externos.
 
 ## Checklist de producción
 

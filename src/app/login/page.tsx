@@ -74,6 +74,24 @@ export default async function LoginPage() {
                 aplicación tu nombre, correo electrónico e
                 imagen de perfil.
               </p>
+
+              <p className="mt-4 text-center text-[11px] leading-5 text-app-text-muted">
+                Al acceder aceptas los{" "}
+                <Link
+                  className="text-app-text underline underline-offset-4"
+                  href="/terms"
+                >
+                  términos
+                </Link>{" "}
+                y confirmas que has leído la{" "}
+                <Link
+                  className="text-app-text underline underline-offset-4"
+                  href="/privacy"
+                >
+                  política de privacidad
+                </Link>
+                .
+              </p>
             </div>
           </div>
         </section>

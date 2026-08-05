@@ -5,6 +5,7 @@ import {
 } from "next/font/google";
 
 import { getThemePreset } from "@/config/theme";
+import { getSiteUrl } from "@/lib/site-url";
 
 import "./globals.css";
 
@@ -19,12 +20,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "Base SaaS",
     template: "%s | Base SaaS",
   },
   description:
     "Plantilla reutilizable para crear productos y negocios digitales.",
+  applicationName: "Base SaaS",
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 type RootLayoutProps = Readonly<{
