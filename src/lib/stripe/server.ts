@@ -76,13 +76,6 @@ export type StripePlanPriceStatus = {
 
 export type StripeConfigurationStatus = {
   connected: boolean;
-
-  /*
-   * Compatibilidad temporal con settings/page.tsx.
-   * Representa el precio Premium actual.
-   */
-  priceLabel: string | null;
-
   plans: Record<PaidPlan, StripePlanPriceStatus>;
 };
 
@@ -118,10 +111,13 @@ async function getStripePlanPriceStatus(
       };
     }
 
-    const formattedAmount = new Intl.NumberFormat("es-ES", {
-      style: "currency",
-      currency: "EUR",
-    }).format(unitAmount / 100);
+    const formattedAmount = new Intl.NumberFormat(
+      "es-ES",
+      {
+        style: "currency",
+        currency: "EUR",
+      },
+    ).format(unitAmount / 100);
 
     return {
       connected: true,
@@ -161,7 +157,6 @@ export async function getStripeConfigurationStatus(): Promise<StripeConfiguratio
       plus.connected &&
       premium.connected &&
       priceIdsAreDifferent,
-    priceLabel: premium.priceLabel,
     plans: {
       plus,
       premium,
