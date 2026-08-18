@@ -79,6 +79,52 @@ export const DEMO_EXERCISES: readonly Exercise[] = [
       { skill: "context_reading", weight: 0.25 },
       { skill: "discipline", weight: 0.15 },
     ],
+    tradePlanRubrics: {
+      long: {
+        entry: {
+          optimal: { min: 85.7, max: 86.2 },
+          acceptable: { min: 85.2, max: 86.7 },
+        },
+        stop: {
+          optimal: { min: 84.6, max: 85.1 },
+          acceptable: { min: 84.0, max: 85.4 },
+        },
+        target: {
+          optimal: { min: 87.2, max: 88.2 },
+          acceptable: { min: 86.8, max: 89.0 },
+        },
+        minimumRewardRisk: 1.2,
+        idealRewardRisk: 2,
+        weights: {
+          entry: 0.25,
+          invalidation: 0.35,
+          target: 0.2,
+          rewardRisk: 0.2,
+        },
+      },
+      short: {
+        entry: {
+          optimal: { min: 85.6, max: 86.1 },
+          acceptable: { min: 85.1, max: 86.6 },
+        },
+        stop: {
+          optimal: { min: 86.8, max: 87.5 },
+          acceptable: { min: 86.4, max: 88.2 },
+        },
+        target: {
+          optimal: { min: 83.4, max: 84.4 },
+          acceptable: { min: 82.5, max: 85.0 },
+        },
+        minimumRewardRisk: 1.4,
+        idealRewardRisk: 2.2,
+        weights: {
+          entry: 0.25,
+          invalidation: 0.35,
+          target: 0.2,
+          rewardRisk: 0.2,
+        },
+      },
+    },
     rubric: {
       version: 1,
       decisions: {
@@ -143,6 +189,52 @@ export const DEMO_EXERCISES: readonly Exercise[] = [
       { skill: "context_reading", weight: 0.2 },
       { skill: "discipline", weight: 0.25 },
     ],
+    tradePlanRubrics: {
+      long: {
+        entry: {
+          optimal: { min: 99.5, max: 100.0 },
+          acceptable: { min: 99.1, max: 100.3 },
+        },
+        stop: {
+          optimal: { min: 98.3, max: 98.8 },
+          acceptable: { min: 97.9, max: 99.0 },
+        },
+        target: {
+          optimal: { min: 101.2, max: 101.8 },
+          acceptable: { min: 100.9, max: 102.2 },
+        },
+        minimumRewardRisk: 1.2,
+        idealRewardRisk: 1.8,
+        weights: {
+          entry: 0.25,
+          invalidation: 0.35,
+          target: 0.2,
+          rewardRisk: 0.2,
+        },
+      },
+      short: {
+        entry: {
+          optimal: { min: 99.6, max: 100.2 },
+          acceptable: { min: 99.3, max: 100.5 },
+        },
+        stop: {
+          optimal: { min: 101.1, max: 101.8 },
+          acceptable: { min: 100.8, max: 102.2 },
+        },
+        target: {
+          optimal: { min: 98.4, max: 99.0 },
+          acceptable: { min: 98.0, max: 99.2 },
+        },
+        minimumRewardRisk: 1.1,
+        idealRewardRisk: 1.7,
+        weights: {
+          entry: 0.25,
+          invalidation: 0.35,
+          target: 0.2,
+          rewardRisk: 0.2,
+        },
+      },
+    },
     rubric: {
       version: 1,
       decisions: {
@@ -211,6 +303,52 @@ export const DEMO_EXERCISES: readonly Exercise[] = [
       { skill: "context_reading", weight: 0.3 },
       { skill: "discipline", weight: 0.2 },
     ],
+    tradePlanRubrics: {
+      long: {
+        entry: {
+          optimal: { min: 100.7, max: 101.3 },
+          acceptable: { min: 100.3, max: 101.6 },
+        },
+        stop: {
+          optimal: { min: 99.6, max: 100.2 },
+          acceptable: { min: 99.0, max: 100.4 },
+        },
+        target: {
+          optimal: { min: 102.4, max: 103.4 },
+          acceptable: { min: 102.0, max: 104.0 },
+        },
+        minimumRewardRisk: 1.2,
+        idealRewardRisk: 2,
+        weights: {
+          entry: 0.25,
+          invalidation: 0.35,
+          target: 0.2,
+          rewardRisk: 0.2,
+        },
+      },
+      short: {
+        entry: {
+          optimal: { min: 100.7, max: 101.2 },
+          acceptable: { min: 100.3, max: 101.6 },
+        },
+        stop: {
+          optimal: { min: 102.0, max: 102.8 },
+          acceptable: { min: 101.7, max: 103.4 },
+        },
+        target: {
+          optimal: { min: 98.8, max: 99.8 },
+          acceptable: { min: 98.0, max: 100.1 },
+        },
+        minimumRewardRisk: 1.2,
+        idealRewardRisk: 2,
+        weights: {
+          entry: 0.25,
+          invalidation: 0.35,
+          target: 0.2,
+          rewardRisk: 0.2,
+        },
+      },
+    },
     rubric: {
       version: 1,
       decisions: {

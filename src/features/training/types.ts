@@ -2,6 +2,10 @@ export const TRAINING_DECISIONS = ["long", "no_trade", "short"] as const;
 
 export type TrainingDecision = (typeof TRAINING_DECISIONS)[number];
 
+export const DIRECTIONAL_DECISIONS = ["long", "short"] as const;
+
+export type DirectionalDecision = (typeof DIRECTIONAL_DECISIONS)[number];
+
 export const TRAINING_SKILLS = [
   "context_reading",
   "trend_reading",
@@ -44,6 +48,56 @@ export type ExerciseSource = {
   label: string;
 };
 
+export type PriceZone = {
+  min: number;
+  max: number;
+};
+
+export type PriceZoneRubric = {
+  optimal: PriceZone;
+  acceptable: PriceZone;
+};
+
+export type TradePlan = {
+  entry: number;
+  stop: number;
+  target: number;
+};
+
+export type TradePlanRubric = {
+  entry: PriceZoneRubric;
+  stop: PriceZoneRubric;
+  target: PriceZoneRubric;
+  minimumRewardRisk: number;
+  idealRewardRisk: number;
+  weights: {
+    entry: number;
+    invalidation: number;
+    target: number;
+    rewardRisk: number;
+  };
+};
+
+export type TradePlanComponent =
+  | "entry"
+  | "invalidation"
+  | "target"
+  | "reward_risk";
+
+export type TradePlanComponentScore = {
+  component: TradePlanComponent;
+  score: number;
+  weight: number;
+};
+
+export type TradePlanResult = {
+  decision: DirectionalDecision;
+  plan: TradePlan;
+  rewardRisk: number;
+  overallScore: number;
+  componentScores: readonly TradePlanComponentScore[];
+};
+
 export type Exercise = {
   id: string;
   version: number;
@@ -56,6 +110,7 @@ export type Exercise = {
   revealCount: number;
   skills: readonly ExerciseSkillWeight[];
   rubric: ExerciseRubric;
+  tradePlanRubrics: Record<DirectionalDecision, TradePlanRubric>;
 };
 
 export type ExerciseAttemptInput = {
