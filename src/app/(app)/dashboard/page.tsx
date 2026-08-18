@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { OnboardingCard } from "@/components/app/onboarding-card";
@@ -8,44 +9,15 @@ import { getCurrentProfile } from "@/lib/auth/current-profile";
 export const metadata: Metadata = {
   title: "Dashboard",
   description:
-    "Panel principal provisional de la plantilla SaaS.",
+    "Panel de entrenamiento, progreso y acceso a sesiones de Trading Trainer.",
 };
 
-const metrics = [
-  {
-    label: "Proyectos",
-    value: "04",
-    detail: "+1 este mes",
-  },
-  {
-    label: "Usuarios",
-    value: "128",
-    detail: "+18,4 %",
-  },
-  {
-    label: "Ingresos",
-    value: "€2.4k",
-    detail: "Últimos 30 días",
-  },
-];
-
-const recentProjects = [
-  {
-    name: "Proyecto Analytics",
-    status: "Activo",
-    updatedAt: "Actualizado hoy",
-  },
-  {
-    name: "Newsletter financiera",
-    status: "Borrador",
-    updatedAt: "Actualizado ayer",
-  },
-  {
-    name: "Herramienta de valoración",
-    status: "Idea",
-    updatedAt: "Actualizado hace 3 días",
-  },
-];
+const skillPlaceholders = [
+  "Lectura de contexto",
+  "Disciplina",
+  "Gestión de riesgo",
+  "Calibración de confianza",
+] as const;
 
 export default async function DashboardPage() {
   const currentProfile = await getCurrentProfile();
@@ -57,189 +29,185 @@ export default async function DashboardPage() {
   const { profile } = currentProfile;
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+    <main className="mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
       <header className="flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
-        <div>
+        <div className="max-w-2xl">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
-            Overview
+            Dashboard
           </span>
 
-          <h1 className="mt-3 text-3xl font-medium tracking-[-0.045em] text-app-text sm:text-4xl">
-            Hola, {profile.firstName}
+          <h1 className="mt-3 text-3xl font-medium tracking-[-0.05em] text-app-text sm:text-4xl">
+            Hola, {profile.firstName}. ¿Entrenamos una decisión?
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Tu cuenta está autenticada y preparada para
-            seguir construyendo.
+            Aquí aparecerán tus habilidades, sesiones y áreas a mejorar cuando empecemos a guardar intentos reales.
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden items-center gap-3 sm:flex">
-            <UserAvatar
-              alt={`Avatar de ${profile.displayName}`}
-              avatarUrl={profile.avatarUrl}
-              initial={profile.initial}
-              size={42}
-            />
-
-            <div className="max-w-48">
-              <span className="block truncate text-sm text-app-text">
-                {profile.displayName}
-              </span>
-
-              <span className="mt-1 block truncate text-xs text-app-text-muted">
-                {profile.email}
-              </span>
-            </div>
+        <div className="hidden items-center gap-3 sm:flex">
+          <UserAvatar
+            alt={`Avatar de ${profile.displayName}`}
+            avatarUrl={profile.avatarUrl}
+            initial={profile.initial}
+            size={42}
+          />
+          <div className="max-w-48">
+            <span className="block truncate text-sm text-app-text">
+              {profile.displayName}
+            </span>
+            <span className="mt-1 block truncate text-xs text-app-text-muted">
+              {profile.email}
+            </span>
           </div>
-
-          <button
-            className="min-h-11 cursor-not-allowed rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text opacity-50"
-            disabled
-            title="Esta función se añadirá más adelante"
-            type="button"
-          >
-            Nuevo proyecto
-          </button>
         </div>
       </header>
 
       {!profile.onboardingCompleted ? (
-        <OnboardingCard
-          firstName={profile.firstName}
-        />
+        <OnboardingCard firstName={profile.firstName} />
       ) : null}
 
-      <div className="mt-8 inline-flex rounded-full border border-app-border bg-app-surface-subtle px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-        Métricas de demostración
-      </div>
+      <section className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+        <article className="relative overflow-hidden rounded-3xl border border-app-border-strong bg-app-surface-active p-6 sm:p-8">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-app-accent opacity-[0.05] blur-3xl"
+          />
 
-      <section
-        aria-label="Resumen de métricas"
-        className="mt-4 grid gap-3 md:grid-cols-3"
-      >
-        {metrics.map((metric) => (
-          <article
-            className="rounded-2xl border border-app-border bg-app-surface-subtle p-6"
-            key={metric.label}
-          >
-            <span className="text-xs text-app-text-soft">
-              {metric.label}
-            </span>
-
-            <strong className="mt-5 block text-3xl font-medium tracking-[-0.05em] text-app-text">
-              {metric.value}
-            </strong>
-
-            <span className="mt-3 block text-xs text-app-text-muted">
-              {metric.detail}
-            </span>
-          </article>
-        ))}
-      </section>
-
-      <section className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <article className="rounded-2xl border border-app-border bg-app-surface-subtle p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs text-app-text-muted">
-                Actividad
+          <div className="relative max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-app-border bg-app-page-soft px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
+                Sesión guiada
               </span>
-
-              <h2 className="mt-2 text-lg font-medium text-app-text">
-                Crecimiento mensual
-              </h2>
+              <span className="rounded-full border border-app-border px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
+                Datos sintéticos
+              </span>
             </div>
 
-            <span className="rounded-lg border border-app-border px-3 py-2 text-[10px] text-app-text-muted">
-              12 meses
-            </span>
+            <h2 className="mt-6 text-3xl font-medium tracking-[-0.05em] text-app-text sm:text-4xl">
+              Mira el gráfico. Toma postura. Descubre el futuro después.
+            </h2>
+
+            <p className="mt-4 max-w-xl text-sm leading-6 text-app-text-soft">
+              La primera sala visual ya está preparada para alojar nuestro motor de ejercicios. Todavía no puntúa ni guarda decisiones.
+            </p>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text transition duration-200 hover:bg-app-accent-hover"
+                href="/train"
+              >
+                Entrar a la sala
+              </Link>
+
+              <span className="inline-flex min-h-11 items-center rounded-xl border border-app-border px-4 font-mono text-[9px] uppercase tracking-[0.13em] text-app-text-muted">
+                Long · No trade · Short
+              </span>
+            </div>
           </div>
 
-          <div className="relative mt-8 h-64 overflow-hidden rounded-xl border border-app-border bg-app-page-soft">
-            <div className="absolute inset-0 flex flex-col justify-between p-5">
-              <span className="h-px bg-app-border opacity-50" />
-              <span className="h-px bg-app-border opacity-50" />
-              <span className="h-px bg-app-border opacity-50" />
-              <span className="h-px bg-app-border opacity-50" />
-              <span className="h-px bg-app-border opacity-50" />
-            </div>
-
-            <svg
-              className="absolute inset-x-0 bottom-0 h-[85%] w-full"
-              preserveAspectRatio="none"
-              role="presentation"
-              viewBox="0 0 700 240"
-            >
-              <defs>
-                <linearGradient
-                  id="dashboardChartFill"
-                  x1="0"
-                  x2="0"
-                  y1="0"
-                  y2="1"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor="var(--theme-accent)"
-                    stopOpacity="0.2"
-                  />
-
-                  <stop
-                    offset="100%"
-                    stopColor="var(--theme-accent)"
-                    stopOpacity="0"
-                  />
-                </linearGradient>
-              </defs>
-
-              <path
-                d="M0,210 C65,205 95,181 146,187 C207,194 225,142 284,153 C343,164 371,112 426,123 C489,136 515,75 577,87 C629,97 658,45 700,32 L700,240 L0,240 Z"
-                fill="url(#dashboardChartFill)"
-              />
-
-              <path
-                d="M0,210 C65,205 95,181 146,187 C207,194 225,142 284,153 C343,164 371,112 426,123 C489,136 515,75 577,87 C629,97 658,45 700,32"
-                fill="none"
-                stroke="var(--theme-accent)"
-                strokeOpacity="0.9"
-                strokeWidth="2"
-                vectorEffect="non-scaling-stroke"
-              />
-            </svg>
+          <div className="relative mt-10 grid h-24 grid-cols-12 items-end gap-1.5 overflow-hidden rounded-2xl border border-app-border bg-app-page-soft/60 px-4 pb-4 pt-6">
+            {[38, 52, 34, 63, 48, 72, 58, 81, 67, 74, 61, 88].map(
+              (height, index) => (
+                <span
+                  className="rounded-t-sm bg-app-accent opacity-40"
+                  key={`${height}-${index}`}
+                  style={{ height: `${height}%` }}
+                />
+              ),
+            )}
           </div>
         </article>
 
-        <article className="rounded-2xl border border-app-border bg-app-surface-subtle p-6">
-          <div>
-            <span className="text-xs text-app-text-muted">
-              Proyectos
+        <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
+                Reto diario
+              </span>
+              <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
+                Próximamente
+              </h2>
+            </div>
+            <span className="grid size-10 place-items-center rounded-xl border border-app-border bg-app-page-soft font-mono text-xs text-app-text-muted">
+              01
             </span>
-
-            <h2 className="mt-2 text-lg font-medium text-app-text">
-              Actividad reciente
-            </h2>
           </div>
 
-          <div className="mt-7 divide-y divide-app-border">
-            {recentProjects.map((project) => (
+          <p className="mt-5 text-sm leading-6 text-app-text-soft">
+            Todos resolverán el mismo escenario y podremos comparar decisiones sin revelar el futuro antes de tiempo.
+          </p>
+
+          <div className="mt-6 rounded-2xl border border-dashed border-app-border-strong p-4">
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
+              No hay datos inventados
+            </span>
+            <p className="mt-2 text-xs leading-5 text-app-text-muted">
+              Se activará cuando exista el modelo real de ejercicios y persistencia.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section className="mt-4 grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
+        <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-6">
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
+            Tu progreso
+          </span>
+          <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
+            Aún no hay sesiones puntuadas
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-app-text-soft">
+            No mostraremos porcentajes ni rachas ficticias. Este espacio se llenará únicamente con intentos reales.
+          </p>
+
+          <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+            {skillPlaceholders.map((skill) => (
               <div
-                className="py-5 first:pt-0"
-                key={project.name}
+                className="flex items-center justify-between rounded-xl border border-app-border bg-app-page-soft px-4 py-3"
+                key={skill}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-sm font-medium text-app-text">
-                    {project.name}
-                  </h3>
+                <span className="text-xs text-app-text-soft">{skill}</span>
+                <span className="font-mono text-xs text-app-text-muted">—</span>
+              </div>
+            ))}
+          </div>
+        </article>
 
-                  <span className="rounded-full border border-app-border px-2 py-1 text-[9px] text-app-text-soft">
-                    {project.status}
-                  </span>
-                </div>
+        <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
+                Cómo entrenaremos
+              </span>
+              <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
+                Cuatro momentos, una misma decisión
+              </h2>
+            </div>
+            <span className="rounded-full border border-app-border px-3 py-1.5 text-[9px] text-app-text-muted">
+              V1
+            </span>
+          </div>
 
-                <p className="mt-2 text-xs text-app-text-muted">
-                  {project.updatedAt}
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            {[
+              ["01", "Analiza", "Solo ves la información disponible hasta ese instante."],
+              ["02", "Decide", "Elige largo, corto o no operar y declara tu confianza."],
+              ["03", "Revela", "El gráfico continúa después de bloquear tu decisión."],
+              ["04", "Aprende", "La evaluación separará proceso, disciplina y resultado."],
+            ].map(([number, title, detail]) => (
+              <div
+                className="rounded-2xl border border-app-border bg-app-page-soft p-4"
+                key={number}
+              >
+                <span className="font-mono text-[9px] text-app-text-muted">
+                  {number}
+                </span>
+                <h3 className="mt-4 text-sm font-medium text-app-text">
+                  {title}
+                </h3>
+                <p className="mt-2 text-[11px] leading-5 text-app-text-muted">
+                  {detail}
                 </p>
               </div>
             ))}

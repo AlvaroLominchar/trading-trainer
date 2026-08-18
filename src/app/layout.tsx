@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Geist,
-  Geist_Mono,
-} from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import { getThemePreset } from "@/config/theme";
 import { getSiteUrl } from "@/lib/site-url";
@@ -22,12 +19,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Base SaaS",
-    template: "%s | Base SaaS",
+    default: "Trading Trainer",
+    template: "%s | Trading Trainer",
   },
   description:
-    "Plantilla reutilizable para crear productos y negocios digitales.",
-  applicationName: "Base SaaS",
+    "Entrena toma de decisiones de trading mediante escenarios históricos o controlados.",
+  applicationName: "Trading Trainer",
   robots: {
     index: true,
     follow: true,
@@ -49,9 +46,7 @@ export default function RootLayout({
       data-theme={themePreset}
       lang="es"
     >
-      <body
-        className={`${geistSans.variable} ${geistMono.variable}`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
       </body>
     </html>
