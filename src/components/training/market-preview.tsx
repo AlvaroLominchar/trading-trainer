@@ -16,13 +16,14 @@ type MarketPreviewProps = {
   compact?: boolean;
   decisionIndex: number;
   revealCount: number;
-  revealFuture: boolean;
+  revealedCount: number;
   isRevealing: boolean;
   sourceLabel: string;
   timeframe: ExerciseTimeframe;
   tradePlan?: TradePlan | null;
   tradePlanDecision?: DirectionalDecision | null;
   tradePlanDisabled?: boolean;
+  editableTradePlanLines?: readonly TradePlanLine[];
   onTradePlanChange?: (plan: TradePlan) => void;
 };
 
@@ -32,12 +33,16 @@ const CHART_LEFT = 34;
 const CHART_RIGHT = 926;
 const CHART_TOP = 46;
 const CHART_BOTTOM = 316;
-const BODY_WIDTH = 7;
-const PRICE_PADDING_SHARE = 0.35;
+const BODY_WIDTH = 9;
+const PRICE_PADDING_SHARE = 0.22;
 const MIN_LINE_GAP_SHARE = 0.012;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampRevealCount(revealCount: number, revealedCount: number) {
+  return clamp(Math.floor(revealedCount), 0, revealCount);
 }
 
 function clampRevealEnd(
@@ -103,19 +108,26 @@ export function MarketPreview({
   compact = false,
   decisionIndex,
   revealCount,
-  revealFuture,
+  revealedCount,
   isRevealing,
   sourceLabel,
   timeframe,
   tradePlan = null,
   tradePlanDecision = null,
   tradePlanDisabled = false,
+  editableTradePlanLines = ["entry", "stop", "target"],
   onTradePlanChange,
 }: MarketPreviewProps) {
+  const safeRevealedCount = clampRevealCount(revealCount, revealedCount);
   const revealEnd = clampRevealEnd(candles.length, decisionIndex, revealCount);
   const totalDisplayCount = revealEnd + 1;
-  const renderedEnd = revealFuture ? revealEnd : decisionIndex;
+  const renderedEnd = Math.min(
+    revealEnd,
+    decisionIndex + safeRevealedCount,
+  );
   const renderedCandles = candles.slice(0, renderedEnd + 1);
+  const isFullyRevealed = safeRevealedCount >= revealCount;
+  const isPartiallyRevealed = safeRevealedCount > 0 && !isFullyRevealed;
 
   const minCandlePrice = Math.min(...renderedCandles.map((candle) => candle.low));
   const maxCandlePrice = Math.max(...renderedCandles.map((candle) => candle.high));
@@ -145,7 +157,11 @@ export function MarketPreview({
     CHART_RIGHT,
     xForIndex(decisionIndex) + xStep * 0.55,
   );
-  const hiddenWidth = Math.max(CHART_RIGHT - decisionLineX, 0);
+  const hiddenStartX = Math.min(
+    CHART_RIGHT,
+    xForIndex(renderedEnd) + xStep * 0.55,
+  );
+  const hiddenWidth = Math.max(CHART_RIGHT - hiddenStartX, 0);
   const canEditTradePlan = Boolean(
     tradePlan && tradePlanDecision && onTradePlanChange && !tradePlanDisabled,
   );
@@ -156,6 +172,7 @@ export function MarketPreview({
   ) {
     if (
       !canEditTradePlan ||
+      !editableTradePlanLines.includes(line) ||
       !tradePlan ||
       !tradePlanDecision ||
       !onTradePlanChange ||
@@ -214,10 +231,16 @@ export function MarketPreview({
       ]
     : [];
 
+  const topStatus = isFullyRevealed
+    ? "Futuro revelado"
+    : isPartiallyRevealed
+      ? `Gestión · ${safeRevealedCount}/${revealCount} velas`
+      : `Escenario oculto · ${formatTimeframeLabel(timeframe)}`;
+
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-app-border bg-app-page ${
-        compact ? "h-full min-h-[320px] sm:min-h-[390px]" : "h-full min-h-[360px] sm:min-h-[430px]"
+      className={`relative min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-app-border bg-app-page ${
+        compact ? "h-full min-h-[320px] sm:min-h-[390px]" : "min-h-[360px] sm:min-h-[430px]"
       }`}
     >
       <div className="absolute inset-0 opacity-60">
@@ -241,7 +264,7 @@ export function MarketPreview({
           className={`size-1.5 rounded-full bg-app-text-soft ${isRevealing ? "animate-pulse" : ""}`}
         />
         <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft">
-          {revealFuture ? "Futuro revelado" : `Escenario oculto · ${formatTimeframeLabel(timeframe)}`}
+          {topStatus}
         </span>
       </div>
 
@@ -251,9 +274,11 @@ export function MarketPreview({
 
       <svg
         aria-label={
-          revealFuture
+          isFullyRevealed
             ? "Gráfico de velas sintético con el tramo posterior revelado"
-            : "Gráfico de velas sintético con el futuro oculto"
+            : isPartiallyRevealed
+              ? "Gráfico de velas sintético en gestión progresiva"
+              : "Gráfico de velas sintético con el futuro oculto"
         }
         className="absolute inset-0 h-full w-full"
         preserveAspectRatio="xMidYMid meet"
@@ -275,7 +300,7 @@ export function MarketPreview({
           const lowY = yForPrice(candle.low);
           const isUp = candle.close >= candle.open;
           const bodyY = Math.min(openY, closeY);
-          const bodyHeight = Math.max(Math.abs(closeY - openY), 2.5);
+          const bodyHeight = Math.max(Math.abs(closeY - openY), 3.5);
           const isFutureCandle = index > decisionIndex;
 
           return (
@@ -283,7 +308,7 @@ export function MarketPreview({
               <line
                 stroke={isUp ? "var(--theme-trading-bull)" : "var(--theme-trading-bear)"}
                 strokeOpacity={0.92}
-                strokeWidth="1.25"
+                strokeWidth="1.55"
                 vectorEffect="non-scaling-stroke"
                 x1={x}
                 x2={x}
@@ -303,12 +328,12 @@ export function MarketPreview({
           );
         })}
 
-        {!revealFuture && hiddenWidth > 0 ? (
+        {!isFullyRevealed && hiddenWidth > 0 ? (
           <rect
             fill="url(#trainingHiddenFade)"
             height={CHART_BOTTOM - CHART_TOP + 22}
             width={hiddenWidth}
-            x={decisionLineX}
+            x={hiddenStartX}
             y={CHART_TOP - 11}
           />
         ) : null}
@@ -316,7 +341,7 @@ export function MarketPreview({
         <line
           stroke="var(--theme-border-strong)"
           strokeDasharray="4 5"
-          strokeOpacity={revealFuture ? 0.34 : 0.58}
+          strokeOpacity={isFullyRevealed ? 0.34 : 0.58}
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
           x1={decisionLineX}
@@ -327,7 +352,8 @@ export function MarketPreview({
 
         {planLines.map(({ line, label, value, stroke, dash }) => {
           const y = yForPrice(value);
-          const labelY = clamp(y - 10, CHART_TOP - 2, CHART_BOTTOM - 18);
+          const labelY = clamp(y - 14.5, CHART_TOP - 2, CHART_BOTTOM - 27);
+          const isEditable = canEditTradePlan && editableTradePlanLines.includes(line);
 
           return (
             <g key={line}>
@@ -335,14 +361,14 @@ export function MarketPreview({
                 stroke={stroke}
                 strokeDasharray={dash}
                 strokeOpacity="0.92"
-                strokeWidth="1.5"
+                strokeWidth="1.8"
                 vectorEffect="non-scaling-stroke"
                 x1={CHART_LEFT}
                 x2={CHART_RIGHT}
                 y1={y}
                 y2={y}
               />
-              {canEditTradePlan ? (
+              {isEditable ? (
                 <line
                   aria-label={`Mover ${label.toLowerCase()}`}
                   className="cursor-ns-resize"
@@ -357,7 +383,7 @@ export function MarketPreview({
                     }
                   }}
                   stroke="transparent"
-                  strokeWidth="22"
+                  strokeWidth="28"
                   style={{ touchAction: "none" }}
                   vectorEffect="non-scaling-stroke"
                   x1={CHART_LEFT}
@@ -370,20 +396,20 @@ export function MarketPreview({
                 <rect
                   fill="var(--theme-page)"
                   fillOpacity="0.94"
-                  height="24"
+                  height="29"
                   rx="5"
                   stroke={stroke}
                   strokeOpacity="0.56"
-                  width="128"
+                  width="148"
                   x={CHART_LEFT + 4}
                   y={labelY}
                 />
                 <text
                   fill={stroke}
                   fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-                  fontSize="10"
-                  x={CHART_LEFT + 10}
-                  y={labelY + 15.2}
+                  fontSize="11.5"
+                  x={CHART_LEFT + 12}
+                  y={labelY + 18.6}
                 >
                   {label} · {formatPrice(value)}
                 </text>
@@ -393,22 +419,30 @@ export function MarketPreview({
         })}
       </svg>
 
-      {tradePlan && tradePlanDecision && !revealFuture ? (
-        <div className="absolute left-4 top-[58px] z-10 rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-app-text-soft backdrop-blur">
-          {tradePlanDisabled ? "Plan bloqueado" : "Arrastra las líneas · ratón o táctil"}
+      {tradePlan && tradePlanDecision && !isFullyRevealed ? (
+        <div className="absolute left-4 top-[62px] z-10 rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-app-text-soft backdrop-blur">
+          {tradePlanDisabled
+            ? "Plan bloqueado"
+            : editableTradePlanLines.length === 1 && editableTradePlanLines[0] === "stop"
+              ? "Ajusta solo el stop"
+              : "Arrastra las líneas · ratón o táctil"}
         </div>
       ) : null}
 
       <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3">
         <span className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 text-[10px] text-app-text-soft backdrop-blur">
-          {revealFuture
+          {isFullyRevealed
             ? "La línea vertical marca dónde tomaste la decisión"
-            : tradePlan
-              ? "Ajusta tu plan antes de confirmar"
-              : "El futuro queda oculto a partir de la línea"}
+            : isPartiallyRevealed
+              ? "La operación avanza solo con la información ya revelada"
+              : tradePlan
+                ? "Ajusta tu plan antes de confirmar"
+                : "El futuro queda oculto a partir de la línea"}
         </span>
         <span className="hidden rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft backdrop-blur sm:block">
-          {revealFuture ? `${revealCount} velas reveladas` : "Decide sin conocer el final"}
+          {isFullyRevealed
+            ? `${revealCount} velas reveladas`
+            : `${safeRevealedCount}/${revealCount} velas`}
         </span>
       </div>
     </div>
