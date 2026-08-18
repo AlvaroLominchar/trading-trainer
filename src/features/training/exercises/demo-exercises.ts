@@ -1,4 +1,11 @@
-import type { Candle, Exercise } from "../types";
+import type {
+  Candle,
+  DirectionalDecision,
+  Exercise,
+  ExerciseManagementRubric,
+  ManagementFixedActionRubric,
+  ManagementMoveStopRubric,
+} from "../types";
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const SYNTHETIC_START = Date.UTC(2026, 0, 5, 8, 0, 0);
@@ -58,6 +65,474 @@ const falseBreakoutCloses = [
   100.6, 100.3, 100.0, 99.7, 99.4, 99.1, 98.8, 98.5, 98.2, 97.9,
   97.6, 97.3,
 ] as const;
+
+
+function fixedManagementAction(
+  score: number,
+  summary: string,
+  reason: string,
+): ManagementFixedActionRubric {
+  return {
+    score,
+    summary,
+    reasons: [reason],
+  };
+}
+
+function moveStopManagementAction(
+  baseScore: number,
+  optimal: readonly [number, number],
+  acceptable: readonly [number, number],
+  summary: string,
+  reason: string,
+  placementWeight = 0.6,
+): ManagementMoveStopRubric {
+  return {
+    baseScore,
+    placementWeight,
+    protectedRisk: {
+      optimal: { min: optimal[0], max: optimal[1] },
+      acceptable: { min: acceptable[0], max: acceptable[1] },
+    },
+    summary,
+    reasons: [reason],
+  };
+}
+
+const trendManagementRubrics = {
+  long: {
+    version: 1,
+    checkpoints: [
+      {
+        afterRevealOffset: 2,
+        actions: {
+          hold: fixedManagementAction(
+            34,
+            "Mantener prolonga una idea que sigue chocando con la estructura dominante.",
+            "Las primeras velas reveladas no recuperan la estructura bajista previa.",
+          ),
+          close: fixedManagementAction(
+            92,
+            "Cerrar reconoce pronto que el escenario no confirma el giro alcista.",
+            "La información disponible sigue favoreciendo preservar riesgo antes que insistir en el rebote.",
+          ),
+          move_stop: moveStopManagementAction(
+            72,
+            [0.25, 0.55],
+            [0.1, 0.75],
+            "Reducir riesgo es razonable si decides mantener abierta la idea alcista.",
+            "El stop debe acercarse sin quedar pegado al precio por una reacción mínima.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 5,
+        actions: {
+          hold: fixedManagementAction(
+            22,
+            "Mantener sin cambios deja demasiado espacio a una tesis cada vez menos respaldada.",
+            "La estructura visible continúa deteriorando la hipótesis alcista.",
+          ),
+          close: fixedManagementAction(
+            96,
+            "Cerrar es la gestión más disciplinada ante una tesis que no ha recuperado estructura.",
+            "La continuación bajista ya ofrece suficiente evidencia para dejar de defender el giro.",
+          ),
+          move_stop: moveStopManagementAction(
+            68,
+            [0.55, 0.9],
+            [0.35, 1.0],
+            "Ajustar el stop limita daño, aunque cerrar sigue siendo más coherente.",
+            "Si mantienes, la protección debería haber avanzado de forma clara respecto al riesgo inicial.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 8,
+        actions: {
+          hold: fixedManagementAction(
+            15,
+            "Mantener ignora una invalidación contextual ya prolongada.",
+            "No aparece una recuperación de estructura que justifique seguir dando margen a la idea.",
+          ),
+          close: fixedManagementAction(
+            98,
+            "Cerrar evita convertir una mala lectura inicial en una pérdida de disciplina mayor.",
+            "El contexto disponible ya no sostiene razonablemente la operación alcista.",
+          ),
+          move_stop: moveStopManagementAction(
+            64,
+            [0.75, 1.0],
+            [0.55, 1.15],
+            "Proteger agresivamente es mejor que dejar intacto el riesgo, aunque la salida sigue siendo preferible.",
+            "A estas alturas el stop debería haber reducido prácticamente todo el riesgo inicial.",
+          ),
+        },
+      },
+    ],
+  },
+  short: {
+    version: 1,
+    checkpoints: [
+      {
+        afterRevealOffset: 2,
+        actions: {
+          hold: fixedManagementAction(
+            92,
+            "Mantener respeta una tesis bajista que sigue intacta.",
+            "La estructura visible continúa desarrollándose sin invalidar la idea inicial.",
+          ),
+          close: fixedManagementAction(
+            36,
+            "Cerrar tan pronto renuncia a una tesis que todavía conserva su lógica.",
+            "No hay una recuperación estructural que obligue a abandonar la operación.",
+          ),
+          move_stop: moveStopManagementAction(
+            66,
+            [0.05, 0.25],
+            [0, 0.4],
+            "Un ajuste pequeño puede ser defendible, pero todavía conviene dar espacio a la estructura.",
+            "Mover demasiado pronto el stop aumenta el riesgo de salir por ruido normal.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 5,
+        actions: {
+          hold: fixedManagementAction(
+            84,
+            "Mantener sigue siendo coherente mientras la secuencia bajista permanezca ordenada.",
+            "El precio avanza a favor sin mostrar todavía una recuperación clara contra la tesis.",
+          ),
+          close: fixedManagementAction(
+            68,
+            "Cerrar asegura resultado, aunque todavía sacrifica parte de una estructura favorable.",
+            "La salida es defendible, pero no existe una invalidación que la haga necesaria.",
+          ),
+          move_stop: moveStopManagementAction(
+            94,
+            [0.45, 0.8],
+            [0.25, 1.0],
+            "Reducir riesgo ahora acompaña el avance sin ahogar la operación.",
+            "La protección puede acercarse después de que el mercado haya recorrido suficiente distancia a favor.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 8,
+        actions: {
+          hold: fixedManagementAction(
+            76,
+            "Mantener conserva exposición a una estructura todavía favorable.",
+            "La tesis no está invalidada, aunque ya existe beneficio suficiente para revisar protección.",
+          ),
+          close: fixedManagementAction(
+            82,
+            "Cerrar es defendible después de un tramo amplio a favor.",
+            "La operación ya ha materializado una parte relevante del movimiento disponible.",
+          ),
+          move_stop: moveStopManagementAction(
+            96,
+            [0.85, 1.2],
+            [0.6, 1.4],
+            "Proteger cerca de break-even o beneficio bloqueado equilibra continuidad y control de riesgo.",
+            "El avance acumulado permite reducir casi todo el riesgo inicial sin perseguir cada vela.",
+          ),
+        },
+      },
+    ],
+  },
+} satisfies Record<DirectionalDecision, ExerciseManagementRubric>;
+
+const rangeManagementRubrics = {
+  long: {
+    version: 1,
+    checkpoints: [
+      {
+        afterRevealOffset: 2,
+        actions: {
+          hold: fixedManagementAction(
+            56,
+            "Mantener todavía es posible, pero la operación sigue naciendo dentro de un rango sin ventaja clara.",
+            "La información disponible no confirma una expansión limpia desde el centro del rango.",
+          ),
+          close: fixedManagementAction(
+            86,
+            "Cerrar limita exposición en un contexto que continúa sin ofrecer asimetría clara.",
+            "La falta de confirmación hace razonable abandonar pronto una idea forzada.",
+          ),
+          move_stop: moveStopManagementAction(
+            68,
+            [0.15, 0.4],
+            [0.05, 0.6],
+            "Reducir algo de riesgo es defendible si decides mantener la operación.",
+            "En rango conviene proteger sin colocar el stop dentro del ruido inmediato.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 5,
+        actions: {
+          hold: fixedManagementAction(
+            48,
+            "Mantener prolonga una operación que sigue sin desarrollar una ventaja direccional clara.",
+            "Las rotaciones visibles continúan dominando el comportamiento del precio.",
+          ),
+          close: fixedManagementAction(
+            90,
+            "Cerrar devuelve disciplina a una operación que no ha conseguido salir del contexto lateral.",
+            "El escenario sigue premiando reducir exposición antes que insistir en una ruptura inexistente.",
+          ),
+          move_stop: moveStopManagementAction(
+            74,
+            [0.4, 0.7],
+            [0.2, 0.9],
+            "Ajustar el stop mejora el control, aunque cerrar sigue siendo la opción más limpia.",
+            "La protección debería avanzar si el precio no desarrolla la expansión esperada.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 8,
+        actions: {
+          hold: fixedManagementAction(
+            42,
+            "Mantener sigue exponiendo capital a ruido lateral sin una tesis más clara.",
+            "El rango continúa sin ofrecer una ruptura estructural convincente.",
+          ),
+          close: fixedManagementAction(
+            93,
+            "Cerrar evita sobreoperar un contexto que nunca ha ofrecido ventaja suficiente.",
+            "La información acumulada sigue favoreciendo salir antes que esperar un movimiento por insistencia.",
+          ),
+          move_stop: moveStopManagementAction(
+            72,
+            [0.65, 0.95],
+            [0.45, 1.1],
+            "Proteger con firmeza es preferible a mantener el riesgo original en un rango persistente.",
+            "La gestión debe reducir exposición cuando la tesis no progresa.",
+          ),
+        },
+      },
+    ],
+  },
+  short: {
+    version: 1,
+    checkpoints: [
+      {
+        afterRevealOffset: 2,
+        actions: {
+          hold: fixedManagementAction(
+            58,
+            "Mantener es posible, pero la lectura corta sigue sin una ventaja clara desde el centro del rango.",
+            "El precio continúa rotando y no confirma una expansión bajista limpia.",
+          ),
+          close: fixedManagementAction(
+            84,
+            "Cerrar limita una idea direccional que el contexto todavía no confirma.",
+            "La ausencia de ruptura hace razonable retirar exposición pronto.",
+          ),
+          move_stop: moveStopManagementAction(
+            68,
+            [0.15, 0.4],
+            [0.05, 0.6],
+            "Reducir algo de riesgo es defendible si mantienes la idea corta.",
+            "El rango exige margen suficiente para no confundir ruido con invalidación.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 5,
+        actions: {
+          hold: fixedManagementAction(
+            50,
+            "Mantener sigue dependiendo de que aparezca una ruptura que aún no está confirmada.",
+            "Las rotaciones continúan dominando el contexto visible.",
+          ),
+          close: fixedManagementAction(
+            89,
+            "Cerrar evita convertir una lectura mediocre en sobreexposición al rango.",
+            "La operación no ha conseguido desarrollar una ventaja bajista clara.",
+          ),
+          move_stop: moveStopManagementAction(
+            75,
+            [0.4, 0.7],
+            [0.2, 0.9],
+            "Ajustar el stop mejora el control mientras decides si abandonar la idea.",
+            "La protección debería avanzar cuando el mercado no confirma continuación.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 8,
+        actions: {
+          hold: fixedManagementAction(
+            44,
+            "Mantener prolonga una tesis que sigue atrapada en el mismo equilibrio lateral.",
+            "No aparece una ruptura estructural que justifique conservar el riesgo original.",
+          ),
+          close: fixedManagementAction(
+            92,
+            "Cerrar es la gestión más coherente ante un rango que persiste.",
+            "El contexto acumulado sigue sin ofrecer una ventaja bajista suficiente.",
+          ),
+          move_stop: moveStopManagementAction(
+            72,
+            [0.65, 0.95],
+            [0.45, 1.1],
+            "Proteger con firmeza limita el coste de insistir en una lectura lateral.",
+            "El stop debería reflejar que la operación no está desarrollando la expansión esperada.",
+          ),
+        },
+      },
+    ],
+  },
+} satisfies Record<DirectionalDecision, ExerciseManagementRubric>;
+
+const falseBreakoutManagementRubrics = {
+  long: {
+    version: 1,
+    checkpoints: [
+      {
+        afterRevealOffset: 2,
+        actions: {
+          hold: fixedManagementAction(
+            30,
+            "Mantener sigue defendiendo una ruptura que ha perdido aceptación.",
+            "Las primeras velas de gestión no reconstruyen la continuación alcista esperada.",
+          ),
+          close: fixedManagementAction(
+            93,
+            "Cerrar reconoce rápidamente que la ruptura no está sosteniendo la tesis alcista.",
+            "La pérdida de aceptación sigue siendo visible sin necesitar información posterior.",
+          ),
+          move_stop: moveStopManagementAction(
+            74,
+            [0.25, 0.55],
+            [0.1, 0.75],
+            "Reducir riesgo es razonable si todavía mantienes la idea de ruptura.",
+            "La protección debe avanzar porque la continuación esperada no aparece.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 5,
+        actions: {
+          hold: fixedManagementAction(
+            20,
+            "Mantener ignora un rechazo que ya se ha extendido suficientemente.",
+            "La estructura visible continúa alejándose de la tesis alcista inicial.",
+          ),
+          close: fixedManagementAction(
+            97,
+            "Cerrar evita seguir defendiendo una ruptura fallida.",
+            "El mercado ya ha vuelto de forma clara al contexto previo.",
+          ),
+          move_stop: moveStopManagementAction(
+            70,
+            [0.55, 0.9],
+            [0.35, 1.0],
+            "Ajustar el stop reduce daño, aunque la salida completa sigue siendo más disciplinada.",
+            "Si permaneces dentro, el riesgo original ya no debería seguir intacto.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 8,
+        actions: {
+          hold: fixedManagementAction(
+            14,
+            "Mantener convierte una ruptura fallida en una apuesta contra la estructura visible.",
+            "No existe recuperación suficiente para seguir justificando la exposición alcista.",
+          ),
+          close: fixedManagementAction(
+            99,
+            "Cerrar es la respuesta más disciplinada ante una tesis ampliamente deteriorada.",
+            "La información disponible ya contradice de forma sostenida la ruptura inicial.",
+          ),
+          move_stop: moveStopManagementAction(
+            66,
+            [0.75, 1.0],
+            [0.55, 1.15],
+            "Proteger casi todo el riesgo es mejor que no intervenir, aunque llega tarde frente a cerrar.",
+            "La gestión debería impedir que una mala tesis conserve el riesgo inicial durante tanto tiempo.",
+          ),
+        },
+      },
+    ],
+  },
+  short: {
+    version: 1,
+    checkpoints: [
+      {
+        afterRevealOffset: 2,
+        actions: {
+          hold: fixedManagementAction(
+            88,
+            "Mantener deja espacio a una lectura bajista que sigue coherente con la pérdida de aceptación.",
+            "La vuelta al rango continúa sin invalidar la tesis de falsa ruptura.",
+          ),
+          close: fixedManagementAction(
+            48,
+            "Cerrar es prudente, pero abandona demasiado pronto una lectura que todavía conserva lógica.",
+            "No aparece una recuperación suficiente sobre la zona perdida.",
+          ),
+          move_stop: moveStopManagementAction(
+            66,
+            [0.1, 0.3],
+            [0, 0.45],
+            "Un ajuste ligero puede ser defendible sin estrangular la operación.",
+            "Todavía conviene dejar margen a la estructura mientras el rechazo se confirma.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 5,
+        actions: {
+          hold: fixedManagementAction(
+            84,
+            "Mantener sigue siendo coherente mientras el rechazo desarrolla continuidad.",
+            "El precio continúa avanzando a favor sin reconstruir la ruptura previa.",
+          ),
+          close: fixedManagementAction(
+            72,
+            "Cerrar asegura parte del movimiento y es una opción defendible.",
+            "La tesis sigue viva, por lo que la salida no es obligatoria todavía.",
+          ),
+          move_stop: moveStopManagementAction(
+            92,
+            [0.45, 0.8],
+            [0.25, 1.0],
+            "Reducir riesgo acompaña bien el avance del rechazo.",
+            "La protección puede avanzar después de que el precio haya confirmado suficiente recorrido a favor.",
+          ),
+        },
+      },
+      {
+        afterRevealOffset: 8,
+        actions: {
+          hold: fixedManagementAction(
+            74,
+            "Mantener conserva una tesis todavía favorable, aunque deja beneficio sin proteger.",
+            "El rechazo sigue activo, pero el recorrido acumulado ya justifica revisar el riesgo restante.",
+          ),
+          close: fixedManagementAction(
+            84,
+            "Cerrar es defendible después de una continuación bajista amplia.",
+            "La operación ya ha capturado una parte importante del movimiento disponible.",
+          ),
+          move_stop: moveStopManagementAction(
+            95,
+            [0.8, 1.15],
+            [0.6, 1.35],
+            "Proteger cerca de break-even o beneficio bloqueado equilibra continuidad y disciplina.",
+            "El avance disponible permite reducir casi todo el riesgo inicial sin reaccionar a cada vela.",
+          ),
+        },
+      },
+    ],
+  },
+} satisfies Record<DirectionalDecision, ExerciseManagementRubric>;
 
 export const DEMO_EXERCISES: readonly Exercise[] = [
   {
@@ -125,6 +600,7 @@ export const DEMO_EXERCISES: readonly Exercise[] = [
         },
       },
     },
+    managementRubrics: trendManagementRubrics,
     rubric: {
       version: 1,
       decisions: {
@@ -235,6 +711,7 @@ export const DEMO_EXERCISES: readonly Exercise[] = [
         },
       },
     },
+    managementRubrics: rangeManagementRubrics,
     rubric: {
       version: 1,
       decisions: {
@@ -349,6 +826,7 @@ export const DEMO_EXERCISES: readonly Exercise[] = [
         },
       },
     },
+    managementRubrics: falseBreakoutManagementRubrics,
     rubric: {
       version: 1,
       decisions: {

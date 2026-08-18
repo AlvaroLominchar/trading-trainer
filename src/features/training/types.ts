@@ -98,6 +98,77 @@ export type TradePlanResult = {
   componentScores: readonly TradePlanComponentScore[];
 };
 
+
+export const MANAGEMENT_ACTIONS = ["hold", "close", "move_stop"] as const;
+
+export type ManagementAction = (typeof MANAGEMENT_ACTIONS)[number];
+
+export type ManagementActionInput =
+  | { action: "hold" }
+  | { action: "close" }
+  | { action: "move_stop"; stop: number };
+
+export type ManagementFixedActionRubric = {
+  score: number;
+  summary: string;
+  reasons: readonly string[];
+};
+
+export type ManagementMoveStopRubric = {
+  baseScore: number;
+  placementWeight: number;
+  protectedRisk: PriceZoneRubric;
+  summary: string;
+  reasons: readonly string[];
+};
+
+export type ManagementCheckpointRubric = {
+  afterRevealOffset: number;
+  actions: {
+    hold: ManagementFixedActionRubric;
+    close: ManagementFixedActionRubric;
+    move_stop: ManagementMoveStopRubric;
+  };
+};
+
+export type ExerciseManagementRubric = {
+  version: 1;
+  checkpoints: readonly ManagementCheckpointRubric[];
+};
+
+export type ManagementPositionState = {
+  entry: number;
+  target: number;
+  initialStop: number;
+  activeStop: number;
+};
+
+export type ManagementCandleStatus =
+  | "open"
+  | "stop_hit"
+  | "target_hit"
+  | "ambiguous";
+
+export type ManagementCandleEvaluation = {
+  status: ManagementCandleStatus;
+  exitPrice: number | null;
+};
+
+export type ManagementActionScore = {
+  checkpointOffset: number;
+  action: ManagementAction;
+  score: number;
+  summary: string;
+  reasons: readonly string[];
+  protectedRiskR: number | null;
+  placementScore: number | null;
+};
+
+export type ManagementSessionScore = {
+  overallScore: number;
+  actions: readonly ManagementActionScore[];
+};
+
 export type Exercise = {
   id: string;
   version: number;
@@ -111,6 +182,7 @@ export type Exercise = {
   skills: readonly ExerciseSkillWeight[];
   rubric: ExerciseRubric;
   tradePlanRubrics: Record<DirectionalDecision, TradePlanRubric>;
+  managementRubrics: Record<DirectionalDecision, ExerciseManagementRubric>;
 };
 
 export type ExerciseAttemptInput = {
