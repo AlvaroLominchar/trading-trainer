@@ -1,40 +1,64 @@
-type Candle = {
-  x: number;
-  open: number;
-  close: number;
-  high: number;
-  low: number;
+import type { Candle, ExerciseTimeframe } from "@/features/training/types";
+
+type MarketPreviewProps = {
+  candles: readonly Candle[];
+  decisionIndex: number;
+  revealCount: number;
+  revealFuture: boolean;
+  isRevealing: boolean;
+  sourceLabel: string;
+  timeframe: ExerciseTimeframe;
 };
 
-const candles: readonly Candle[] = [
-  { x: 28, open: 126, close: 116, high: 108, low: 137 },
-  { x: 52, open: 116, close: 121, high: 110, low: 130 },
-  { x: 76, open: 122, close: 105, high: 98, low: 128 },
-  { x: 100, open: 105, close: 96, high: 88, low: 111 },
-  { x: 124, open: 96, close: 102, high: 91, low: 113 },
-  { x: 148, open: 102, close: 88, high: 81, low: 107 },
-  { x: 172, open: 88, close: 82, high: 74, low: 95 },
-  { x: 196, open: 82, close: 94, high: 77, low: 101 },
-  { x: 220, open: 94, close: 87, high: 80, low: 99 },
-  { x: 244, open: 87, close: 73, high: 66, low: 91 },
-  { x: 268, open: 73, close: 78, high: 68, low: 87 },
-  { x: 292, open: 78, close: 92, high: 75, low: 100 },
-  { x: 316, open: 92, close: 98, high: 87, low: 105 },
-  { x: 340, open: 98, close: 91, high: 83, low: 103 },
-  { x: 364, open: 91, close: 101, high: 86, low: 111 },
-  { x: 388, open: 101, close: 108, high: 96, low: 116 },
-  { x: 412, open: 108, close: 104, high: 97, low: 114 },
-  { x: 436, open: 104, close: 117, high: 99, low: 124 },
-  { x: 460, open: 117, close: 111, high: 103, low: 126 },
-  { x: 484, open: 111, close: 119, high: 107, low: 130 },
-  { x: 508, open: 119, close: 113, high: 105, low: 123 },
-  { x: 532, open: 113, close: 124, high: 109, low: 133 },
-  { x: 556, open: 124, close: 121, high: 114, low: 130 },
-  { x: 580, open: 121, close: 129, high: 116, low: 140 },
-  { x: 604, open: 129, close: 123, high: 117, low: 136 },
-];
+const VIEWBOX_WIDTH = 960;
+const VIEWBOX_HEIGHT = 360;
+const CHART_LEFT = 34;
+const CHART_RIGHT = 926;
+const CHART_TOP = 46;
+const CHART_BOTTOM = 316;
+const BODY_WIDTH = 7;
 
-export function MarketPreview() {
+function clampRevealEnd(
+  candleCount: number,
+  decisionIndex: number,
+  revealCount: number,
+) {
+  return Math.min(candleCount - 1, decisionIndex + revealCount);
+}
+
+export function MarketPreview({
+  candles,
+  decisionIndex,
+  revealCount,
+  revealFuture,
+  isRevealing,
+  sourceLabel,
+  timeframe,
+}: MarketPreviewProps) {
+  const revealEnd = clampRevealEnd(candles.length, decisionIndex, revealCount);
+  const totalDisplayCount = revealEnd + 1;
+  const renderedEnd = revealFuture ? revealEnd : decisionIndex;
+  const renderedCandles = candles.slice(0, renderedEnd + 1);
+
+  const minPrice = Math.min(...renderedCandles.map((candle) => candle.low));
+  const maxPrice = Math.max(...renderedCandles.map((candle) => candle.high));
+  const priceRange = Math.max(maxPrice - minPrice, 1);
+  const paddedMin = minPrice - priceRange * 0.08;
+  const paddedMax = maxPrice + priceRange * 0.08;
+  const paddedRange = paddedMax - paddedMin;
+
+  const xStep = (CHART_RIGHT - CHART_LEFT) / Math.max(totalDisplayCount - 1, 1);
+  const xForIndex = (index: number) => CHART_LEFT + index * xStep;
+  const yForPrice = (price: number) =>
+    CHART_TOP +
+    ((paddedMax - price) / paddedRange) * (CHART_BOTTOM - CHART_TOP);
+
+  const decisionLineX = Math.min(
+    CHART_RIGHT,
+    xForIndex(decisionIndex) + xStep * 0.55,
+  );
+  const hiddenWidth = Math.max(CHART_RIGHT - decisionLineX, 0);
+
   return (
     <div className="relative min-h-[360px] overflow-hidden rounded-2xl border border-app-border bg-app-page sm:min-h-[430px]">
       <div className="absolute inset-0 opacity-60">
@@ -60,80 +84,108 @@ export function MarketPreview() {
       </div>
 
       <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-app-border bg-app-page-soft/90 px-3 py-2 backdrop-blur">
-        <span className="size-1.5 rounded-full bg-app-accent" />
+        <span
+          className={`size-1.5 rounded-full bg-app-accent ${
+            isRevealing ? "animate-pulse" : ""
+          }`}
+        />
         <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-          Escenario oculto · 15m
+          {revealFuture ? "Futuro revelado" : `Escenario oculto · ${timeframe}`}
         </span>
       </div>
 
       <div className="absolute right-4 top-4 z-10 rounded-lg border border-app-border bg-app-page-soft/90 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted backdrop-blur">
-        Datos sintéticos
+        {sourceLabel}
       </div>
 
       <svg
-        aria-label="Previsualización de un gráfico de velas sintético"
+        aria-label={
+          revealFuture
+            ? "Gráfico de velas sintético con el tramo posterior revelado"
+            : "Gráfico de velas sintético con el futuro oculto"
+        }
         className="absolute inset-0 h-full w-full"
         preserveAspectRatio="none"
         role="img"
-        viewBox="0 0 640 220"
+        viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
       >
         <defs>
-          <linearGradient id="trainingFade" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="var(--theme-page)" stopOpacity="0" />
-            <stop offset="100%" stopColor="var(--theme-page)" stopOpacity="0.94" />
+          <linearGradient id="trainingHiddenFade" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="var(--theme-page)" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="var(--theme-page)" stopOpacity="0.96" />
           </linearGradient>
         </defs>
 
-        {candles.map((candle) => {
-          const isUp = candle.close < candle.open;
-          const bodyY = Math.min(candle.open, candle.close);
-          const bodyHeight = Math.max(Math.abs(candle.open - candle.close), 2);
+        {renderedCandles.map((candle, index) => {
+          const x = xForIndex(index);
+          const openY = yForPrice(candle.open);
+          const closeY = yForPrice(candle.close);
+          const highY = yForPrice(candle.high);
+          const lowY = yForPrice(candle.low);
+          const isUp = candle.close >= candle.open;
+          const bodyY = Math.min(openY, closeY);
+          const bodyHeight = Math.max(Math.abs(closeY - openY), 2.5);
+          const isFutureCandle = index > decisionIndex;
 
           return (
-            <g key={candle.x}>
+            <g
+              key={`${candle.timestamp}-${index}`}
+              opacity={isFutureCandle && isRevealing ? 0.86 : 1}
+            >
               <line
                 stroke={isUp ? "var(--theme-accent)" : "var(--theme-text-muted)"}
-                strokeOpacity={isUp ? 0.9 : 0.7}
+                strokeOpacity={isUp ? 0.92 : 0.72}
                 strokeWidth="1.25"
                 vectorEffect="non-scaling-stroke"
-                x1={candle.x}
-                x2={candle.x}
-                y1={candle.high}
-                y2={candle.low}
+                x1={x}
+                x2={x}
+                y1={highY}
+                y2={lowY}
               />
               <rect
                 fill={isUp ? "var(--theme-accent)" : "var(--theme-text-muted)"}
                 fillOpacity={isUp ? 0.9 : 0.72}
                 height={bodyHeight}
                 rx="1"
-                width="10"
-                x={candle.x - 5}
+                width={BODY_WIDTH}
+                x={x - BODY_WIDTH / 2}
                 y={bodyY}
               />
             </g>
           );
         })}
 
-        <rect fill="url(#trainingFade)" height="220" width="100" x="540" y="0" />
+        {!revealFuture && hiddenWidth > 0 ? (
+          <rect
+            fill="url(#trainingHiddenFade)"
+            height={CHART_BOTTOM - CHART_TOP + 22}
+            width={hiddenWidth}
+            x={decisionLineX}
+            y={CHART_TOP - 11}
+          />
+        ) : null}
+
         <line
           stroke="var(--theme-accent)"
           strokeDasharray="4 5"
-          strokeOpacity="0.45"
+          strokeOpacity={revealFuture ? 0.28 : 0.52}
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
-          x1="544"
-          x2="544"
-          y1="34"
-          y2="198"
+          x1={decisionLineX}
+          x2={decisionLineX}
+          y1={CHART_TOP - 8}
+          y2={CHART_BOTTOM + 8}
         />
       </svg>
 
       <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3">
         <span className="rounded-lg border border-app-border bg-app-page-soft/90 px-3 py-2 text-[10px] text-app-text-muted backdrop-blur">
-          El futuro queda oculto a partir de la línea
+          {revealFuture
+            ? "La línea marca dónde tomaste la decisión"
+            : "El futuro queda oculto a partir de la línea"}
         </span>
         <span className="hidden font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted sm:block">
-          Preview V1
+          {revealFuture ? `${revealCount} velas reveladas` : "Decide sin conocer el final"}
         </span>
       </div>
     </div>
