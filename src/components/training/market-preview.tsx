@@ -1,13 +1,29 @@
-import type { Candle, ExerciseTimeframe } from "@/features/training/types";
+"use client";
+
+import type { PointerEvent as ReactPointerEvent } from "react";
+
+import type {
+  Candle,
+  DirectionalDecision,
+  ExerciseTimeframe,
+  TradePlan,
+} from "@/features/training/types";
+
+type TradePlanLine = "entry" | "stop" | "target";
 
 type MarketPreviewProps = {
   candles: readonly Candle[];
+  compact?: boolean;
   decisionIndex: number;
   revealCount: number;
   revealFuture: boolean;
   isRevealing: boolean;
   sourceLabel: string;
   timeframe: ExerciseTimeframe;
+  tradePlan?: TradePlan | null;
+  tradePlanDecision?: DirectionalDecision | null;
+  tradePlanDisabled?: boolean;
+  onTradePlanChange?: (plan: TradePlan) => void;
 };
 
 const VIEWBOX_WIDTH = 960;
@@ -17,6 +33,12 @@ const CHART_RIGHT = 926;
 const CHART_TOP = 46;
 const CHART_BOTTOM = 316;
 const BODY_WIDTH = 7;
+const PRICE_PADDING_SHARE = 0.35;
+const MIN_LINE_GAP_SHARE = 0.012;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 function clampRevealEnd(
   candleCount: number,
@@ -26,25 +48,80 @@ function clampRevealEnd(
   return Math.min(candleCount - 1, decisionIndex + revealCount);
 }
 
+function formatPrice(value: number) {
+  return value.toFixed(2);
+}
+
+function formatTimeframeLabel(timeframe: ExerciseTimeframe) {
+  if (timeframe.endsWith("m")) {
+    return `${timeframe.slice(0, -1)} min`;
+  }
+
+  if (timeframe.endsWith("h")) {
+    return `${timeframe.slice(0, -1)} h`;
+  }
+
+  return timeframe;
+}
+
+function constrainPlanLine(
+  line: TradePlanLine,
+  rawPrice: number,
+  decision: DirectionalDecision,
+  plan: TradePlan,
+  minPrice: number,
+  maxPrice: number,
+): TradePlan {
+  const minGap = Math.max((maxPrice - minPrice) * MIN_LINE_GAP_SHARE, 0.0001);
+  const next = { ...plan };
+
+  if (decision === "long") {
+    if (line === "entry") {
+      next.entry = clamp(rawPrice, plan.stop + minGap, plan.target - minGap);
+    } else if (line === "stop") {
+      next.stop = clamp(rawPrice, minPrice, plan.entry - minGap);
+    } else {
+      next.target = clamp(rawPrice, plan.entry + minGap, maxPrice);
+    }
+  } else if (line === "entry") {
+    next.entry = clamp(rawPrice, plan.target + minGap, plan.stop - minGap);
+  } else if (line === "stop") {
+    next.stop = clamp(rawPrice, plan.entry + minGap, maxPrice);
+  } else {
+    next.target = clamp(rawPrice, minPrice, plan.entry - minGap);
+  }
+
+  return {
+    entry: Number(next.entry.toFixed(4)),
+    stop: Number(next.stop.toFixed(4)),
+    target: Number(next.target.toFixed(4)),
+  };
+}
+
 export function MarketPreview({
   candles,
+  compact = false,
   decisionIndex,
   revealCount,
   revealFuture,
   isRevealing,
   sourceLabel,
   timeframe,
+  tradePlan = null,
+  tradePlanDecision = null,
+  tradePlanDisabled = false,
+  onTradePlanChange,
 }: MarketPreviewProps) {
   const revealEnd = clampRevealEnd(candles.length, decisionIndex, revealCount);
   const totalDisplayCount = revealEnd + 1;
   const renderedEnd = revealFuture ? revealEnd : decisionIndex;
   const renderedCandles = candles.slice(0, renderedEnd + 1);
 
-  const minPrice = Math.min(...renderedCandles.map((candle) => candle.low));
-  const maxPrice = Math.max(...renderedCandles.map((candle) => candle.high));
-  const priceRange = Math.max(maxPrice - minPrice, 1);
-  const paddedMin = minPrice - priceRange * 0.08;
-  const paddedMax = maxPrice + priceRange * 0.08;
+  const minCandlePrice = Math.min(...renderedCandles.map((candle) => candle.low));
+  const maxCandlePrice = Math.max(...renderedCandles.map((candle) => candle.high));
+  const candleRange = Math.max(maxCandlePrice - minCandlePrice, 1);
+  const paddedMin = minCandlePrice - candleRange * PRICE_PADDING_SHARE;
+  const paddedMax = maxCandlePrice + candleRange * PRICE_PADDING_SHARE;
   const paddedRange = paddedMax - paddedMin;
 
   const xStep = (CHART_RIGHT - CHART_LEFT) / Math.max(totalDisplayCount - 1, 1);
@@ -52,22 +129,101 @@ export function MarketPreview({
   const yForPrice = (price: number) =>
     CHART_TOP +
     ((paddedMax - price) / paddedRange) * (CHART_BOTTOM - CHART_TOP);
+  const priceForClientY = (clientY: number, svg: SVGSVGElement) => {
+    const rect = svg.getBoundingClientRect();
+    const viewBoxY = ((clientY - rect.top) / Math.max(rect.height, 1)) * VIEWBOX_HEIGHT;
+    const chartProgress = clamp(
+      (viewBoxY - CHART_TOP) / (CHART_BOTTOM - CHART_TOP),
+      0,
+      1,
+    );
+
+    return paddedMax - chartProgress * paddedRange;
+  };
 
   const decisionLineX = Math.min(
     CHART_RIGHT,
     xForIndex(decisionIndex) + xStep * 0.55,
   );
   const hiddenWidth = Math.max(CHART_RIGHT - decisionLineX, 0);
+  const canEditTradePlan = Boolean(
+    tradePlan && tradePlanDecision && onTradePlanChange && !tradePlanDisabled,
+  );
+
+  function handlePlanPointerMove(
+    event: ReactPointerEvent<SVGLineElement>,
+    line: TradePlanLine,
+  ) {
+    if (
+      !canEditTradePlan ||
+      !tradePlan ||
+      !tradePlanDecision ||
+      !onTradePlanChange ||
+      !event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      return;
+    }
+
+    const svg = event.currentTarget.ownerSVGElement;
+
+    if (!svg) {
+      return;
+    }
+
+    const rawPrice = priceForClientY(event.clientY, svg);
+    onTradePlanChange(
+      constrainPlanLine(
+        line,
+        rawPrice,
+        tradePlanDecision,
+        tradePlan,
+        paddedMin,
+        paddedMax,
+      ),
+    );
+  }
+
+  const planLines: readonly {
+    line: TradePlanLine;
+    label: string;
+    value: number;
+    stroke: string;
+    dash?: string;
+  }[] = tradePlan
+    ? [
+        {
+          line: "target",
+          label: "TARGET",
+          value: tradePlan.target,
+          stroke: "var(--theme-trading-bull)",
+          dash: "6 5",
+        },
+        {
+          line: "entry",
+          label: "ENTRY",
+          value: tradePlan.entry,
+          stroke: "var(--theme-text)",
+        },
+        {
+          line: "stop",
+          label: "STOP",
+          value: tradePlan.stop,
+          stroke: "var(--theme-trading-bear)",
+          dash: "3 4",
+        },
+      ]
+    : [];
 
   return (
-    <div className="relative min-h-[360px] overflow-hidden rounded-2xl border border-app-border bg-app-page sm:min-h-[430px]">
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-app-border bg-app-page ${
+        compact ? "h-full min-h-[320px] sm:min-h-[390px]" : "h-full min-h-[360px] sm:min-h-[430px]"
+      }`}
+    >
       <div className="absolute inset-0 opacity-60">
         <div className="grid h-full grid-rows-5">
           {Array.from({ length: 5 }).map((_, index) => (
-            <div
-              className="border-b border-app-border last:border-b-0"
-              key={index}
-            />
+            <div className="border-b border-app-border last:border-b-0" key={index} />
           ))}
         </div>
       </div>
@@ -75,26 +231,21 @@ export function MarketPreview({
       <div className="absolute inset-0 opacity-40">
         <div className="grid h-full grid-cols-6">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div
-              className="border-r border-app-border last:border-r-0"
-              key={index}
-            />
+            <div className="border-r border-app-border last:border-r-0" key={index} />
           ))}
         </div>
       </div>
 
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-app-border bg-app-page-soft/90 px-3 py-2 backdrop-blur">
+      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 backdrop-blur">
         <span
-          className={`size-1.5 rounded-full bg-app-accent ${
-            isRevealing ? "animate-pulse" : ""
-          }`}
+          className={`size-1.5 rounded-full bg-app-text-soft ${isRevealing ? "animate-pulse" : ""}`}
         />
-        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-          {revealFuture ? "Futuro revelado" : `Escenario oculto · ${timeframe}`}
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft">
+          {revealFuture ? "Futuro revelado" : `Escenario oculto · ${formatTimeframeLabel(timeframe)}`}
         </span>
       </div>
 
-      <div className="absolute right-4 top-4 z-10 rounded-lg border border-app-border bg-app-page-soft/90 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted backdrop-blur">
+      <div className="absolute right-4 top-4 z-10 rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft backdrop-blur">
         {sourceLabel}
       </div>
 
@@ -105,7 +256,7 @@ export function MarketPreview({
             : "Gráfico de velas sintético con el futuro oculto"
         }
         className="absolute inset-0 h-full w-full"
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
       >
@@ -128,13 +279,10 @@ export function MarketPreview({
           const isFutureCandle = index > decisionIndex;
 
           return (
-            <g
-              key={`${candle.timestamp}-${index}`}
-              opacity={isFutureCandle && isRevealing ? 0.86 : 1}
-            >
+            <g key={`${candle.timestamp}-${index}`} opacity={isFutureCandle && isRevealing ? 0.86 : 1}>
               <line
-                stroke={isUp ? "var(--theme-accent)" : "var(--theme-text-muted)"}
-                strokeOpacity={isUp ? 0.92 : 0.72}
+                stroke={isUp ? "var(--theme-trading-bull)" : "var(--theme-trading-bear)"}
+                strokeOpacity={0.92}
                 strokeWidth="1.25"
                 vectorEffect="non-scaling-stroke"
                 x1={x}
@@ -143,8 +291,8 @@ export function MarketPreview({
                 y2={lowY}
               />
               <rect
-                fill={isUp ? "var(--theme-accent)" : "var(--theme-text-muted)"}
-                fillOpacity={isUp ? 0.9 : 0.72}
+                fill={isUp ? "var(--theme-trading-bull)" : "var(--theme-trading-bear)"}
+                fillOpacity={0.9}
                 height={bodyHeight}
                 rx="1"
                 width={BODY_WIDTH}
@@ -166,9 +314,9 @@ export function MarketPreview({
         ) : null}
 
         <line
-          stroke="var(--theme-accent)"
+          stroke="var(--theme-border-strong)"
           strokeDasharray="4 5"
-          strokeOpacity={revealFuture ? 0.28 : 0.52}
+          strokeOpacity={revealFuture ? 0.34 : 0.58}
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
           x1={decisionLineX}
@@ -176,15 +324,90 @@ export function MarketPreview({
           y1={CHART_TOP - 8}
           y2={CHART_BOTTOM + 8}
         />
+
+        {planLines.map(({ line, label, value, stroke, dash }) => {
+          const y = yForPrice(value);
+          const labelY = clamp(y - 10, CHART_TOP - 2, CHART_BOTTOM - 18);
+
+          return (
+            <g key={line}>
+              <line
+                stroke={stroke}
+                strokeDasharray={dash}
+                strokeOpacity="0.92"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+                x1={CHART_LEFT}
+                x2={CHART_RIGHT}
+                y1={y}
+                y2={y}
+              />
+              {canEditTradePlan ? (
+                <line
+                  aria-label={`Mover ${label.toLowerCase()}`}
+                  className="cursor-ns-resize"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => handlePlanPointerMove(event, line)}
+                  onPointerUp={(event) => {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId);
+                    }
+                  }}
+                  stroke="transparent"
+                  strokeWidth="22"
+                  style={{ touchAction: "none" }}
+                  vectorEffect="non-scaling-stroke"
+                  x1={CHART_LEFT}
+                  x2={CHART_RIGHT}
+                  y1={y}
+                  y2={y}
+                />
+              ) : null}
+              <g pointerEvents="none">
+                <rect
+                  fill="var(--theme-page)"
+                  fillOpacity="0.94"
+                  height="24"
+                  rx="5"
+                  stroke={stroke}
+                  strokeOpacity="0.56"
+                  width="128"
+                  x={CHART_LEFT + 4}
+                  y={labelY}
+                />
+                <text
+                  fill={stroke}
+                  fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+                  fontSize="10"
+                  x={CHART_LEFT + 10}
+                  y={labelY + 15.2}
+                >
+                  {label} · {formatPrice(value)}
+                </text>
+              </g>
+            </g>
+          );
+        })}
       </svg>
 
+      {tradePlan && tradePlanDecision && !revealFuture ? (
+        <div className="absolute left-4 top-[58px] z-10 rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-app-text-soft backdrop-blur">
+          {tradePlanDisabled ? "Plan bloqueado" : "Arrastra las líneas · ratón o táctil"}
+        </div>
+      ) : null}
+
       <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3">
-        <span className="rounded-lg border border-app-border bg-app-page-soft/90 px-3 py-2 text-[10px] text-app-text-muted backdrop-blur">
+        <span className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 text-[10px] text-app-text-soft backdrop-blur">
           {revealFuture
-            ? "La línea marca dónde tomaste la decisión"
-            : "El futuro queda oculto a partir de la línea"}
+            ? "La línea vertical marca dónde tomaste la decisión"
+            : tradePlan
+              ? "Ajusta tu plan antes de confirmar"
+              : "El futuro queda oculto a partir de la línea"}
         </span>
-        <span className="hidden font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted sm:block">
+        <span className="hidden rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft backdrop-blur sm:block">
           {revealFuture ? `${revealCount} velas reveladas` : "Decide sin conocer el final"}
         </span>
       </div>

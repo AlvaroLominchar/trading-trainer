@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 @theme inline {
@@ -22,6 +23,11 @@
 
   --color-app-track: var(--theme-track);
   --color-app-danger: var(--theme-danger);
+
+  --color-training-accent: var(--theme-training-accent);
+  --color-training-accent-soft: var(--theme-training-accent-soft);
+  --color-training-accent-border: var(--theme-training-accent-border);
+  --color-training-accent-text: var(--theme-training-accent-text);
 }
 
 :root {
@@ -30,6 +36,8 @@
   --radius-medium: 20px;
   --radius-large: 30px;
   --transition: 180ms ease;
+  --theme-trading-bull: #22c55e;
+  --theme-trading-bear: #ef4444;
 
   /*
    * Superficies translúcidas derivadas del acento del preset.
@@ -48,6 +56,16 @@
   --theme-track: color-mix(
     in srgb,
     var(--theme-accent) 10%,
+    transparent
+  );
+  --theme-training-accent-soft: color-mix(
+    in srgb,
+    var(--theme-training-accent) 10%,
+    transparent
+  );
+  --theme-training-accent-border: color-mix(
+    in srgb,
+    var(--theme-training-accent) 36%,
     transparent
   );
 
@@ -97,6 +115,8 @@ html[data-theme="midnight"] {
   --theme-selection-background: #ffffff;
   --theme-selection-text: #000000;
   --theme-danger: #fca5a5;
+  --theme-training-accent: #7dd3fc;
+  --theme-training-accent-text: #06131a;
   --theme-shadow: #000000;
 }
 
@@ -128,6 +148,8 @@ html[data-theme="light"] {
   --theme-selection-background: #111111;
   --theme-selection-text: #ffffff;
   --theme-danger: #b42318;
+  --theme-training-accent: #2563eb;
+  --theme-training-accent-text: #ffffff;
   --theme-shadow: #111111;
 }
 
@@ -159,6 +181,8 @@ html[data-theme="violet"] {
   --theme-selection-background: #c4b5fd;
   --theme-selection-text: #0b0a14;
   --theme-danger: #fda4af;
+  --theme-training-accent: #a5b4fc;
+  --theme-training-accent-text: #0c1020;
   --theme-shadow: #000000;
 }
 
@@ -190,6 +214,8 @@ html[data-theme="forest"] {
   --theme-selection-background: #c8e6d2;
   --theme-selection-text: #07100c;
   --theme-danger: #fda4af;
+  --theme-training-accent: #6ee7b7;
+  --theme-training-accent-text: #06120d;
   --theme-shadow: #000000;
 }
 
@@ -1433,3 +1459,4 @@ html[data-theme="forest"] {
     transition-duration: 0.01ms !important;
   }
 }
+
