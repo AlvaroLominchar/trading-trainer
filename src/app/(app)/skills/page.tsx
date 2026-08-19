@@ -20,6 +20,7 @@ const SKILL_PROFILE_SELECT = [
   "id",
   "exercise_id",
   "skill_scores",
+  "plan_component_scores",
   "created_at",
 ].join(", ");
 

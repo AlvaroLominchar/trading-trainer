@@ -10,11 +10,13 @@ function row({
   exerciseId,
   createdAt,
   skills,
+  entryTimingScore,
 }: {
   id: string;
   exerciseId: string;
   createdAt: string;
   skills: Array<{ skill: string; score: number; weight?: number }>;
+  entryTimingScore?: number | null;
 }) {
   return {
     id,
@@ -24,6 +26,13 @@ function row({
       ...skill,
       weight: skill.weight ?? 1,
     })),
+    plan_component_scores:
+      entryTimingScore === undefined || entryTimingScore === null
+        ? null
+        : [
+            { component: "entry", score: entryTimingScore, weight: 0.25 },
+            { component: "invalidation", score: 75, weight: 0.35 },
+          ],
   };
 }
 
@@ -43,6 +52,21 @@ describe("parseSkillProfileAttempt", () => {
 
     expect(result?.exerciseId).toBe("scenario-a");
     expect(result?.skillScores).toHaveLength(2);
+    expect(result?.entryTimingScore).toBeNull();
+  });
+
+  it("deriva Timing del componente Entrada del Plan persistido", () => {
+    const result = parseSkillProfileAttempt(
+      row({
+        id: "a",
+        exerciseId: "scenario-a",
+        createdAt: "2026-08-19T08:00:00.000Z",
+        skills: [{ skill: "context_reading", score: 82 }],
+        entryTimingScore: 88,
+      }),
+    );
+
+    expect(result?.entryTimingScore).toBe(88);
   });
 
   it("conserva una puntuación cero válida", () => {
@@ -139,6 +163,37 @@ describe("buildSkillProfile", () => {
     expect(context?.score).toBe(50);
     expect(context?.observations).toBe(2);
     expect(context?.uniqueExercises).toBe(2);
+  });
+
+  it("calcula Timing con la calidad de Entrada sin mezclarlo con la nota de Lectura", () => {
+    const attempts = [
+      parseSkillProfileAttempt(
+        row({
+          id: "new",
+          exerciseId: "scenario-b",
+          createdAt: "2026-08-19T09:00:00.000Z",
+          skills: [{ skill: "context_reading", score: 35 }],
+          entryTimingScore: 90,
+        }),
+      ),
+      parseSkillProfileAttempt(
+        row({
+          id: "old",
+          exerciseId: "scenario-a",
+          createdAt: "2026-08-19T08:00:00.000Z",
+          skills: [{ skill: "context_reading", score: 95 }],
+          entryTimingScore: 70,
+        }),
+      ),
+    ].filter((attempt) => attempt !== null);
+
+    const profile = buildSkillProfile(attempts);
+    const timing = profile.metrics.find((metric) => metric.skill === "entry_timing");
+
+    expect(profile.metrics).toHaveLength(10);
+    expect(timing?.score).toBe(80);
+    expect(timing?.observations).toBe(2);
+    expect(timing?.uniqueExercises).toBe(2);
   });
 
   it("mantiene los puntos recientes en orden cronológico para mostrarlos", () => {

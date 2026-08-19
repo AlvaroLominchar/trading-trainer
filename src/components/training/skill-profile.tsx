@@ -3,12 +3,36 @@ import Link from "next/link";
 import { getSkillLabel } from "@/features/training/history";
 import {
   SKILL_PROFILE_ATTEMPT_LIMIT,
-  SKILL_PROFILE_SIGNAL_MIN_EXERCISES,
-  SKILL_PROFILE_SIGNAL_MIN_GAP,
-  SKILL_PROFILE_SIGNAL_MIN_OBSERVATIONS,
   type SkillProfile,
   type SkillProfileMetric,
 } from "@/features/training/skill-profile";
+import {
+  TRAINING_SKILLS,
+  type TrainingSkill,
+} from "@/features/training/types";
+
+const SKILL_DESCRIPTIONS: Record<TrainingSkill, string> = {
+  context_reading:
+    "Entender dónde está el precio dentro de la estructura general antes de decidir.",
+  trend_reading:
+    "Reconocer si el mercado mantiene una dirección clara o si esa tendencia está perdiendo calidad.",
+  range_reading:
+    "Detectar cuándo el precio está equilibrado entre dos zonas y evitar forzar una dirección que no existe.",
+  discipline:
+    "Respetar lo que muestra el escenario, incluido no operar cuando la ventaja no es suficiente.",
+  false_breakout:
+    "Detectar rupturas que no consiguen mantenerse fuera del nivel y vuelven a la estructura anterior.",
+  breakout_reading:
+    "Distinguir cuándo una ruptura consigue aceptación y tiene más opciones de continuar.",
+  volatility_reading:
+    "Leer si el movimiento se está contrayendo o expandiendo y ajustar tus expectativas al ritmo del mercado.",
+  exhaustion_reading:
+    "Reconocer cuándo un impulso pierde eficiencia y puede estar acercándose a una pausa o reversión.",
+  retest_reading:
+    "Interpretar el regreso a un nivel roto y comprobar si ahora funciona desde el lado nuevo.",
+  entry_timing:
+    "Elegir un punto de entrada con mejor momento y ubicación, evitando entrar demasiado pronto o perseguir el precio.",
+};
 
 function ScoreBar({ score }: { score: number }) {
   return (
@@ -22,11 +46,7 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-function RecentEvidence({
-  scores,
-}: {
-  scores: readonly number[];
-}) {
+function RecentEvidence({ scores }: { scores: readonly number[] }) {
   if (scores.length === 0) {
     return (
       <div className="flex h-10 items-end gap-1.5">
@@ -57,6 +77,30 @@ function RecentEvidence({
   );
 }
 
+function SkillInfo({ skill }: { skill: TrainingSkill }) {
+  const tooltipId = `skill-info-${skill}`;
+
+  return (
+    <span className="group relative inline-flex">
+      <button
+        aria-describedby={tooltipId}
+        aria-label={`Qué mide ${getSkillLabel(skill)}`}
+        className="grid size-5 place-items-center rounded-full border border-app-border-strong bg-app-surface-active font-mono text-[9px] font-semibold text-app-text-soft transition hover:border-app-text-muted hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-border-strong"
+        type="button"
+      >
+        i
+      </button>
+      <span
+        className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-64 max-w-[75vw] translate-y-1 rounded-xl border border-app-border-strong bg-app-surface px-3.5 py-3 text-[11px] font-normal leading-5 text-app-text-soft opacity-0 shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100"
+        id={tooltipId}
+        role="tooltip"
+      >
+        {SKILL_DESCRIPTIONS[skill]}
+      </span>
+    </span>
+  );
+}
+
 function SkillCard({ metric }: { metric: SkillProfileMetric }) {
   const hasEvidence = metric.score !== null;
 
@@ -67,9 +111,12 @@ function SkillCard({ metric }: { metric: SkillProfileMetric }) {
           <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-app-text-muted">
             Habilidad
           </span>
-          <h3 className="mt-2 text-sm font-medium text-app-text">
-            {getSkillLabel(metric.skill)}
-          </h3>
+          <div className="mt-2 flex items-center gap-2">
+            <h3 className="text-sm font-medium text-app-text">
+              {getSkillLabel(metric.skill)}
+            </h3>
+            <SkillInfo skill={metric.skill} />
+          </div>
         </div>
 
         <div className="text-right">
@@ -120,13 +167,34 @@ function SkillCard({ metric }: { metric: SkillProfileMetric }) {
 function SignalCard({
   eyebrow,
   metric,
+  variant,
 }: {
   eyebrow: string;
   metric: SkillProfileMetric;
+  variant: "strongest" | "focus";
 }) {
+  const isStrongest = variant === "strongest";
+
   return (
-    <div className="rounded-2xl border border-app-border bg-app-page-soft p-4">
-      <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-app-text-muted">
+    <div
+      className={`relative overflow-hidden rounded-2xl border p-4 ${
+        isStrongest
+          ? "border-training-accent-border bg-training-accent-soft shadow-[0_0_26px_rgba(125,211,252,0.08)]"
+          : "border-amber-300/30 bg-amber-300/[0.035] shadow-[0_0_26px_rgba(251,191,36,0.06)]"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`absolute left-0 top-4 h-9 w-0.5 rounded-full ${
+          isStrongest ? "bg-training-accent" : "bg-amber-300"
+        }`}
+      />
+      <span
+        className={`font-mono text-[8px] uppercase tracking-[0.14em] ${
+          isStrongest ? "text-training-accent" : "text-amber-200"
+        }`}
+      >
+        {isStrongest ? "✦ " : "△ "}
         {eyebrow}
       </span>
       <div className="mt-3 flex items-end justify-between gap-4">
@@ -142,6 +210,128 @@ function SignalCard({
           {metric.score}
         </span>
       </div>
+    </div>
+  );
+}
+
+function polarPoint(centerX: number, centerY: number, radius: number, index: number) {
+  const angle = ((-90 + index * (360 / TRAINING_SKILLS.length)) * Math.PI) / 180;
+
+  return {
+    x: centerX + Math.cos(angle) * radius,
+    y: centerY + Math.sin(angle) * radius,
+  };
+}
+
+function polygonPoints(radius: number, centerX: number, centerY: number) {
+  return TRAINING_SKILLS.map((_, index) => {
+    const point = polarPoint(centerX, centerY, radius, index);
+    return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+  }).join(" ");
+}
+
+function SkillRadar({ metrics }: { metrics: readonly SkillProfileMetric[] }) {
+  const centerX = 180;
+  const centerY = 160;
+  const radius = 98;
+  const labelRadius = 128;
+  const metricBySkill = new Map(metrics.map((metric) => [metric.skill, metric]));
+  const profilePoints = TRAINING_SKILLS.map((skill, index) => {
+    const score = metricBySkill.get(skill)?.score ?? 0;
+    return polarPoint(centerX, centerY, radius * (score / 100), index);
+  })
+    .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+    .join(" ");
+
+  return (
+    <div className="mt-5">
+      <svg
+        aria-label="Mapa radar de las diez habilidades del perfil"
+        className="mx-auto block w-full max-w-[430px]"
+        role="img"
+        viewBox="0 0 360 330"
+      >
+        {[0.25, 0.5, 0.75, 1].map((level) => (
+          <polygon
+            fill="none"
+            key={level}
+            points={polygonPoints(radius * level, centerX, centerY)}
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-app-border"
+          />
+        ))}
+
+        {TRAINING_SKILLS.map((skill, index) => {
+          const edge = polarPoint(centerX, centerY, radius, index);
+          const label = polarPoint(centerX, centerY, labelRadius, index);
+          const textAnchor = label.x < centerX - 12 ? "end" : label.x > centerX + 12 ? "start" : "middle";
+          const score = metricBySkill.get(skill)?.score;
+
+          return (
+            <g key={skill}>
+              <line
+                className="text-app-border"
+                stroke="currentColor"
+                strokeWidth="1"
+                x1={centerX}
+                x2={edge.x}
+                y1={centerY}
+                y2={edge.y}
+              />
+              <text
+                className="text-[11px] font-semibold text-app-text-soft"
+                fill="currentColor"
+                textAnchor={textAnchor}
+                x={label.x}
+                y={label.y}
+              >
+                {getSkillLabel(skill)}
+              </text>
+              <text
+                className="text-[9px] text-app-text-muted"
+                fill="currentColor"
+                textAnchor={textAnchor}
+                x={label.x}
+                y={label.y + 11}
+              >
+                {score ?? "--"}
+              </text>
+            </g>
+          );
+        })}
+
+        <polygon
+          className="text-training-accent"
+          fill="currentColor"
+          fillOpacity="0.12"
+          points={profilePoints}
+          stroke="currentColor"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        />
+
+        {TRAINING_SKILLS.map((skill, index) => {
+          const score = metricBySkill.get(skill)?.score;
+
+          if (score === null || score === undefined) {
+            return null;
+          }
+
+          const point = polarPoint(centerX, centerY, radius * (score / 100), index);
+
+          return (
+            <circle
+              className="text-training-accent"
+              cx={point.x}
+              cy={point.y}
+              fill="currentColor"
+              key={`${skill}-point`}
+              r="2.8"
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -199,7 +389,7 @@ export function TrainingSkillProfile({
         {[
           ["Intentos analizados", profile.attemptsAnalyzed],
           ["Escenarios distintos", profile.uniqueExercises],
-          ["Habilidades observadas", `${profile.skillsMeasured}/5`],
+          ["Habilidades observadas", `${profile.skillsMeasured}/${TRAINING_SKILLS.length}`],
         ].map(([label, value]) => (
           <div
             className="rounded-2xl border border-app-border bg-app-surface-subtle px-5 py-4"
@@ -215,19 +405,19 @@ export function TrainingSkillProfile({
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] xl:items-stretch">
         <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-5 sm:p-6">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
             <div>
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
-                Mapa de habilidades
+                Detalle por habilidad
               </span>
               <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-                Lo que tus decisiones están midiendo
+                Tu perfil, habilidad a habilidad
               </h2>
             </div>
             <span className="text-[10px] text-app-text-muted">
-              Ventana: hasta {SKILL_PROFILE_ATTEMPT_LIMIT} intentos recientes
+              Hasta {SKILL_PROFILE_ATTEMPT_LIMIT} intentos recientes
             </span>
           </div>
 
@@ -238,13 +428,13 @@ export function TrainingSkillProfile({
           </div>
         </article>
 
-        <div className="space-y-4">
+        <div className="grid h-full gap-4 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
           <article className="rounded-3xl border border-app-border-strong bg-app-surface-active p-5 sm:p-6">
             <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
               Señales del perfil
             </span>
             <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-              Diferencias con evidencia suficiente
+              Lo más sólido y lo que conviene reforzar
             </h2>
 
             {hasSignals ? (
@@ -252,10 +442,12 @@ export function TrainingSkillProfile({
                 <SignalCard
                   eyebrow="Más sólida ahora"
                   metric={profile.strongestSkill as SkillProfileMetric}
+                  variant="strongest"
                 />
                 <SignalCard
                   eyebrow="A reforzar"
                   metric={profile.focusSkill as SkillProfileMetric}
+                  variant="focus"
                 />
               </div>
             ) : (
@@ -269,8 +461,8 @@ export function TrainingSkillProfile({
               </div>
             )}
 
-            <p className="mt-4 text-[10px] leading-5 text-app-text-muted">
-              Solo comparamos habilidades con al menos {SKILL_PROFILE_SIGNAL_MIN_OBSERVATIONS} observaciones en {SKILL_PROFILE_SIGNAL_MIN_EXERCISES} escenarios distintos y una separación mínima de {SKILL_PROFILE_SIGNAL_MIN_GAP} puntos.
+            <p className="mt-3 text-[10px] leading-5 text-app-text-muted">
+              Solo marcamos una señal cuando hay evidencia en varios escenarios y una diferencia suficientemente clara entre habilidades.
             </p>
           </article>
 
@@ -279,18 +471,40 @@ export function TrainingSkillProfile({
               Cómo se calcula
             </span>
             <h2 className="mt-2 text-lg font-medium tracking-[-0.03em] text-app-text">
-              Evidencia, no una nota total
+              Solo cuenta lo que ese ejercicio ha puesto a prueba
             </h2>
-            <div className="mt-4 space-y-3 text-[11px] leading-5 text-app-text-muted">
-              <p>
-                Cada intento aporta una observación a las habilidades que realmente evaluó ese escenario.
-              </p>
-              <p>
-                El perfil usa el promedio simple de esas observaciones. El peso de una habilidad dentro de la nota de Lectura no se reutiliza para inflar su importancia aquí.
-              </p>
-              <p>
-                Repetir muchas veces el mismo escenario suma práctica, pero no basta por sí solo para declarar una fortaleza o debilidad.
-              </p>
+            <p className="mt-2 text-[11px] leading-5 text-app-text-muted">
+              Cada nota es el promedio de tus evaluaciones reales para esa habilidad. Repetir suma práctica; distintos escenarios aportan variedad.
+            </p>
+
+            <div className="mt-3 divide-y divide-app-border rounded-xl border border-app-border bg-app-page-soft/55 px-3.5">
+              <div className="grid grid-cols-[84px_1fr] gap-3 py-2.5">
+                <span className="text-[10px] font-medium text-app-text">Observaciones</span>
+                <span className="text-[10px] leading-5 text-app-text-muted">Veces que la habilidad fue evaluada.</span>
+              </div>
+              <div className="grid grid-cols-[84px_1fr] gap-3 py-2.5">
+                <span className="text-[10px] font-medium text-app-text">Escenarios</span>
+                <span className="text-[10px] leading-5 text-app-text-muted">Ejercicios distintos donde apareció.</span>
+              </div>
+              <div className="grid grid-cols-[84px_1fr] gap-3 py-2.5">
+                <span className="text-[10px] font-medium text-app-text">Timing</span>
+                <span className="text-[10px] leading-5 text-app-text-muted">Por ahora usa la nota de Entrada del Plan.</span>
+              </div>
+            </div>
+          </article>
+
+          <article className="flex min-h-0 flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-5 sm:p-6">
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
+              Vista global
+            </span>
+            <h2 className="mt-2 text-lg font-medium tracking-[-0.03em] text-app-text">
+              Mapa de habilidades
+            </h2>
+            <p className="mt-2 text-[11px] leading-5 text-app-text-muted">
+              Tu perfil completo de un vistazo.
+            </p>
+            <div className="flex min-h-0 flex-1 items-center justify-center">
+              <SkillRadar metrics={profile.metrics} />
             </div>
           </article>
         </div>

@@ -405,13 +405,15 @@ export function TrainingDashboard({
 
         <article className="rounded-2xl border border-app-border bg-app-surface-subtle p-5">
           <span className="font-mono text-[8px] uppercase tracking-[0.13em] text-app-text-muted">
-            Escenarios
+            Variedad reciente
           </span>
           <span className="mt-2 block text-3xl font-medium tracking-[-0.05em] text-app-text">
-            {summary.uniqueExercises}
+            {summary.attemptsAnalyzed > 0
+              ? `${summary.uniqueExercises}/${summary.attemptsAnalyzed}`
+              : "--"}
           </span>
           <p className="mt-2 text-[11px] leading-5 text-app-text-muted">
-            Situaciones distintas practicadas.
+            Escenarios distintos entre tus últimos intentos analizados.
           </p>
         </article>
 
@@ -467,7 +469,7 @@ export function TrainingDashboard({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-stretch">
-        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7 xl:h-[650px]">
+        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7 xl:h-[680px]">
           <div className="flex items-end justify-between gap-4">
             <div>
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
@@ -499,7 +501,7 @@ export function TrainingDashboard({
           )}
         </article>
 
-        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7 xl:h-[650px]">
+        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7 xl:h-[680px]">
           <div className="flex items-end justify-between gap-4">
             <div>
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">

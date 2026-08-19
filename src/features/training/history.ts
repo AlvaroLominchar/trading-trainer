@@ -1,9 +1,10 @@
-import type {
-  ManagementAction,
-  TradePlan,
-  TradePlanComponent,
-  TrainingDecision,
-  TrainingSkill,
+import {
+  TRAINING_SKILLS,
+  type ManagementAction,
+  type TradePlan,
+  type TradePlanComponent,
+  type TrainingDecision,
+  type TrainingSkill,
 } from "./types";
 
 export const TRAINING_HISTORY_LIMIT = 30;
@@ -72,13 +73,7 @@ const DECISIONS = new Set<TrainingDecision>([
   "short",
 ]);
 
-const SKILLS = new Set<TrainingSkill>([
-  "context_reading",
-  "trend_reading",
-  "range_reading",
-  "discipline",
-  "false_breakout",
-]);
+const SKILLS = new Set<TrainingSkill>(TRAINING_SKILLS);
 
 const PLAN_COMPONENTS = new Set<TradePlanComponent>([
   "entry",
@@ -388,6 +383,16 @@ export function getSkillLabel(skill: TrainingSkill) {
       return "Disciplina";
     case "false_breakout":
       return "Falsa ruptura";
+    case "breakout_reading":
+      return "Rupturas";
+    case "volatility_reading":
+      return "Volatilidad";
+    case "exhaustion_reading":
+      return "Agotamiento";
+    case "retest_reading":
+      return "Retests";
+    case "entry_timing":
+      return "Timing";
   }
 }
 

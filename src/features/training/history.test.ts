@@ -142,6 +142,11 @@ describe("etiquetas del historial", () => {
 
   it("traduce skills y componentes sin exponer claves internas", () => {
     expect(getSkillLabel("false_breakout")).toBe("Falsa ruptura");
+    expect(getSkillLabel("breakout_reading")).toBe("Rupturas");
+    expect(getSkillLabel("volatility_reading")).toBe("Volatilidad");
+    expect(getSkillLabel("exhaustion_reading")).toBe("Agotamiento");
+    expect(getSkillLabel("retest_reading")).toBe("Retests");
+    expect(getSkillLabel("entry_timing")).toBe("Timing");
     expect(getPlanComponentLabel("reward_risk")).toBe("R:R");
   });
 });

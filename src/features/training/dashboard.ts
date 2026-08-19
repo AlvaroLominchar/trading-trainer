@@ -156,6 +156,9 @@ function fallbackSkillProfile(
       exerciseId: attempt.exerciseId,
       createdAt: attempt.createdAt,
       skillScores: attempt.skillScores,
+      entryTimingScore:
+        attempt.planComponentScores?.find((item) => item.component === "entry")
+          ?.score ?? null,
     })),
   );
 }

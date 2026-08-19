@@ -4,6 +4,7 @@ import { buildSkillProfile } from "./skill-profile";
 import {
   buildTrainingDashboard,
   DASHBOARD_RECENT_ATTEMPTS_LIMIT,
+  DASHBOARD_SKILL_PREVIEW_LIMIT,
 } from "./dashboard";
 import type { TrainingHistoryAttempt } from "./history";
 
@@ -181,6 +182,9 @@ describe("buildTrainingDashboard", () => {
           exerciseId: attempt.exerciseId,
           createdAt: attempt.createdAt,
           skillScores: attempt.skillScores,
+          entryTimingScore:
+            attempt.planComponentScores?.find((item) => item.component === "entry")
+              ?.score ?? null,
         })),
       ),
     });
@@ -191,6 +195,31 @@ describe("buildTrainingDashboard", () => {
     expect(summary.focusSkill).toEqual(
       expect.objectContaining({ skill: "discipline", score: 65 }),
     );
+  });
+
+  it("keeps the dashboard skill preview capped at five metrics", () => {
+    expect(DASHBOARD_SKILL_PREVIEW_LIMIT).toBe(5);
+
+    const attempts = [
+      createAttempt({
+        id: "all-skills",
+        skillScores: [
+          { skill: "context_reading", score: 80, weight: 1 },
+          { skill: "trend_reading", score: 81, weight: 1 },
+          { skill: "range_reading", score: 82, weight: 1 },
+          { skill: "discipline", score: 83, weight: 1 },
+          { skill: "false_breakout", score: 84, weight: 1 },
+          { skill: "breakout_reading", score: 85, weight: 1 },
+          { skill: "volatility_reading", score: 86, weight: 1 },
+          { skill: "exhaustion_reading", score: 87, weight: 1 },
+          { skill: "retest_reading", score: 88, weight: 1 },
+        ],
+      }),
+    ];
+
+    const summary = buildTrainingDashboard(attempts);
+
+    expect(summary.skillMetrics).toHaveLength(5);
   });
 
   it("keeps up to twelve recent attempts for the scrollable dashboard history", () => {

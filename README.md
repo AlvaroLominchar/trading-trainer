@@ -12,83 +12,59 @@ Trading Trainer funciona como un **gimnasio de decisiones**:
 Analizar → decidir → gestionar → revelar → aprender → repetir
 ```
 
-El objetivo no es reproducir un terminal de trading completo, sino convertir aprendizaje pasivo en práctica corta, visual y medible.
+El objetivo no es reproducir un terminal completo, sino convertir aprendizaje pasivo en práctica corta, visual y medible.
 
-## Estado funcional
+## Estado confirmado
 
-El producto ya incluye:
+Último commit confirmado:
 
-- autenticación con Supabase + Google OAuth;
-- aplicación privada con navegación real;
+```text
+91280a9 Add procedural synthetic training engine
+```
+
+Ya existen:
+
+- Supabase + Google OAuth;
+- navegación privada;
 - entrenamiento jugable;
-- gráfico de velas con futuro oculto;
-- decisión `largo | corto | no operar`;
-- confianza 50–100%;
-- entrada, stop y objetivo para decisiones direccionales;
-- scoring determinista de Lectura;
-- scoring independiente de Plan;
-- gestión progresiva vela a vela con checkpoints;
-- scoring independiente de Gestión;
-- resultado visual explicable;
+- gráfico con futuro oculto;
+- `largo | corto | no operar`;
+- confianza;
+- Entrada/Stop/Objetivo;
+- Lectura, Plan y Gestión deterministas e independientes;
+- gestión progresiva;
 - persistencia segura server-side;
-- historial de intentos;
+- historial;
 - perfil de habilidades;
 - dashboard real y pulido;
-- motor procedural sintético basado en arquetipos + seeds reproducibles;
-- selector de escenarios que reduce repetición reciente.
+- motor procedural con seeds reproducibles;
+- selector que reduce repetición.
 
-El último commit confirmado antes de introducir el motor procedural es:
+Git y el `PROJECT_SNAPSHOT_<commit>.txt` más reciente gobiernan el estado exacto.
 
-```text
-60e73bf Add polished training dashboard
-```
+## Principios
 
-Para el estado exacto actual, usar Git y el `PROJECT_SNAPSHOT_<commit>.txt` más reciente.
-
-## Principios de producto
-
-- El proceso importa más que el resultado aislado.
-- Una operación ganadora puede ser una mala decisión.
-- Una operación perdedora puede estar bien ejecutada.
+- Proceso antes que resultado.
 - `No operar` puede ser la mejor respuesta.
-- Lectura, Plan y Gestión se evalúan por separado.
-- No existe una nota global oficial de “trader”.
-- La confianza no altera el score individual del ejercicio.
-- El futuro revelado no modifica retroactivamente la calidad de la decisión.
-- El scoring debe ser explicable, determinista, versionado y testeable.
-- La IA no será la fuente de verdad de la evaluación.
-- No se usarán señales ni recomendaciones sobre mercado actual en esta fase.
+- Sin nota global oficial de trader.
+- La confianza no altera el score individual.
+- El futuro no modifica retroactivamente la decisión.
+- Scoring explicable, determinista, versionado y testeable.
+- IA como capa explicativa futura, no como verdad del ejercicio.
+- Sin señales/recomendaciones sobre mercado actual en esta fase.
 
-## Motor de ejercicios
+## Motor procedural
 
-### Templates controlados
-
-Las primeras familias se originaron en tres escenarios sintéticos canónicos:
-
-```text
-trend-continuation
-range-midpoint
-false-breakout
-```
-
-Los templates permanecen en:
-
-```text
-src/features/training/exercises/demo-exercises.ts
-```
-
-### Generación procedural
-
-El motor vive en:
+Archivo:
 
 ```text
 src/features/training/exercises/synthetic-catalog.ts
 ```
 
-La versión candidata actual es `g2` y se identifica mediante:
+Identidad:
 
 ```text
-arquetipo + seed + versión de generador
+arquetipo + seed + versión
 ```
 
 Ejemplo:
@@ -97,52 +73,111 @@ Ejemplo:
 syn-range-midpoint-g2-s4242
 ```
 
-La misma seed reconstruye exactamente el mismo escenario también en servidor. Los IDs `g1` generados durante la primera prueba siguen siendo resolubles por compatibilidad, pero `g1` no se usa para escenarios nuevos porque se basaba demasiado en transformar templates existentes y producía geometrías visualmente repetitivas.
+La misma seed reconstruye el mismo escenario también en servidor.
 
-V2 genera una estructura nueva y después sintetiza las velas. Actualmente varía de forma determinista:
+`g1` queda únicamente como compatibilidad para tres familias legacy; nuevos ejercicios usan `g2`.
 
-- seis estilos estructurales por familia;
-- dirección long/short cuando procede;
-- timeframe `5m`, `15m` o `1h`;
-- número y duración de impulsos, pullbacks y rotaciones;
-- profundidad de retrocesos y extremos;
-- rangos estables, contractivos, expansivos, con deriva o más irregulares;
-- falsas rupturas superiores e inferiores de distintas formas;
-- microestructura dentro de los tramos;
-- volatilidad, shocks, wicks, volumen, precio base y timestamps.
+V2 genera estructura de mercado primero y OHLCV después. Varía estructura, dirección, timeframe, duración, microestructura, volatilidad, shocks, wicks, volumen, precio base y timestamps.
 
-El motor genera además rúbricas coherentes con los parámetros latentes del escenario. Entrada/Stop/Objetivo se derivan de estructura visible y volatilidad, mientras Lectura y Gestión siguen siendo deterministas y versionadas. El título y la fuente visibles son neutrales para no revelar el patrón al usuario.
+Existe un validador automático y tests de diversidad geométrica. El espacio de seeds llega hasta `999_999_999` por arquetipo. Las comprobaciones de 60.000 o 20.000 escenarios mencionadas durante el desarrollo fueron muestras de QA, no un catálogo materializado ni una promesa de que todas las seeds posibles estén validadas.
 
-Existe un validador automático de OHLC, ventanas, timestamps y relaciones básicas entre estructura y volatilidad. Los tests incluyen una medida de diversidad geométrica normalizada para evitar regresar a un sistema que solo desplace o escale la misma forma.
+## Catálogo pedagógico — Bloque 13
 
-La implementación continúa restringida a tres familias pedagógicas. Un espacio grande de seeds no equivale a un catálogo definitivo: faltan más arquetipos, dificultad explícita y, a futuro, calibración estadística frente a datos históricos con derechos resueltos.
+El Bloque 13 amplía el catálogo de 3 a **8 familias**:
 
-### Selector
+```text
+trend-continuation
+range-midpoint
+false-breakout
+breakout-acceptance
+range-extreme
+compression
+exhaustion-reversal
+level-retest
+```
 
-El selector actual:
+Nuevos conceptos:
 
-- evita repetir exactamente los ejercicios recientes;
-- intenta no repetir la misma familia de forma consecutiva;
-- favorece familias menos vistas en la ventana reciente.
+- ruptura con aceptación;
+- rechazo en extremo de rango;
+- compresión de volatilidad;
+- agotamiento/reversión;
+- retest de nivel.
 
-Todavía no selecciona ejercicios a partir de debilidades del perfil. Esa será una evolución posterior cuando exista suficiente variedad de contenido.
+Cada familia nueva tiene seis variantes estructurales deterministas por seed.
 
-## Flujo de entrenamiento
+El Bloque 13 está pendiente de validación visual/técnica antes de consolidarse en Git.
 
-1. Se presenta un escenario con futuro oculto.
-2. El usuario decide `Largo`, `Corto` o `No operar`.
-3. Declara confianza.
-4. Si elige dirección, define Entrada, Stop y Objetivo.
-5. Se revela el mercado progresivamente.
-6. En checkpoints relevantes puede Mantener, Cerrar o Proteger el stop.
-7. Se muestran Lectura, Plan y Gestión de forma separada.
-8. El servidor recalcula la evaluación oficial.
-9. El intento se persiste.
-10. Historial, habilidades y dashboard se actualizan a partir de datos reales.
+## Skills
+
+Confirmadas hasta `91280a9`:
+
+```text
+context_reading
+trend_reading
+range_reading
+discipline
+false_breakout
+```
+
+Añadidas en el Bloque 13:
+
+```text
+breakout_reading
+volatility_reading
+exhaustion_reading
+retest_reading
+entry_timing
+```
+
+La página `/skills` presenta **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`; **Timing** se deriva del score oficial del componente `Entrada` de `plan_component_scores` cuando el usuario realiza una operación direccional. No se crea una nota nueva ni una tabla adicional.
+
+### Presentación del perfil
+
+`/skills` muestra diez habilidades con definiciones sencillas, señales visuales de fortaleza/refuerzo y un radar de diez ejes. La columna lateral se compacta para igualar visualmente la altura del detalle principal y se elimina texto redundante bajo el radar. El dashboard conserva una vista resumida de cinco habilidades para no sobrecargar la portada.
+
+## Explicación de las notas
+
+En el resultado, la sección **Por qué** explica explícitamente las tres dimensiones:
+
+- Lectura: por qué la interpretación inicial recibe esa nota.
+- Plan: qué componente entre Entrada, Stop, Objetivo y R:R limita más la puntuación.
+- Gestión: qué checkpoint/acción explica mejor la nota obtenida.
+
+Las explicaciones ya no repiten scores parciales como `0/100`: la nota está en las métricas superiores y **Por qué** se centra en el motivo pedagógico. Lectura / Plan / Gestión se distinguen mediante pills luminosas neutras. Si el usuario elige `No operar`, las cards de Plan y Gestión muestran `No operaste` y la explicación deja claro por qué no aplican. Esta capa es determinista y no cambia las rúbricas ni introduce una nota global.
+
+## Selector
+
+Actualmente:
+
+- evita los últimos 64 IDs persistidos o vistos en sesión;
+- evita repetir inmediatamente la familia si hay alternativas;
+- favorece familias menos vistas;
+- intenta no repetir una firma estructural reciente —familia, variante, timeframe y dirección— cuando existe otra seed válida;
+- descarta seeds inválidas.
+
+Todavía no selecciona por debilidades del perfil. Eso llegará después de validar catálogo y dificultad.
+
+### Esperar frente a no operar
+
+El flujo actual conserva `No operar` como decisión terminal. Está prevista una acción distinta, **Esperar**, para escenarios donde el usuario quiera pedir confirmación, revelar algunas velas y decidir más tarde. Esa evolución encaja directamente con Timing y Disciplina, pero requiere ampliar el flujo y la persistencia de decisiones; no se mezcla con este ajuste de perfil.
+
+## Flujo
+
+1. Escenario con futuro oculto.
+2. Largo / Corto / No operar.
+3. Confianza.
+4. Entrada / Stop / Objetivo si hay dirección.
+5. Revelado progresivo.
+6. Gestión en checkpoints.
+7. Lectura / Plan / Gestión separadas.
+8. Recalculo oficial en servidor.
+9. Persistencia.
+10. Actualización de historial, habilidades y dashboard.
 
 ## Persistencia
 
-La tabla específica del producto es:
+Tabla:
 
 ```text
 public.training_attempts
@@ -154,70 +189,33 @@ Migración:
 supabase/migrations/20260819103000_create_training_attempts.sql
 ```
 
-Seguridad:
-
-- RLS activo.
-- El navegador no inserta intentos directamente.
-- El servidor vuelve a calcular el scoring.
-- Inserción con cliente administrativo solo en servidor.
-- Idempotencia con UUID y fingerprint SHA-256.
-- Eliminación de cuenta en cascada.
+RLS activo, INSERT no expuesto al cliente, scoring recalculado server-side e idempotencia mediante UUID + fingerprint.
 
 ## Progreso
 
-### Historial
+### `/history`
 
-Ruta:
+Intentos recientes con decisión, outcome, confianza, Lectura, Plan, Gestión y detalle.
 
-```text
-/history
-```
+### `/skills`
 
-Muestra intentos recientes con decisión, outcome, confianza, Lectura, Plan, Gestión y detalles expandibles.
+Perfil derivado de intentos persistidos.
 
-### Habilidades
+### `/dashboard`
 
-Ruta:
-
-```text
-/skills
-```
-
-Perfil derivado de intentos persistidos, sin tabla materializada adicional por ahora.
-
-Skills actuales:
-
-```text
-context_reading
-trend_reading
-range_reading
-discipline
-false_breakout
-```
-
-### Dashboard
-
-Ruta:
-
-```text
-/dashboard
-```
-
-Incluye:
-
-- número de intentos;
-- escenarios practicados;
-- proporción de mejores decisiones elegidas;
-- Rendimiento por fase: Lectura / Plan / Gestión;
-- distribución de Largo / Corto / No operar;
-- historial reciente con hasta 12 intentos y scroll interno;
+- intentos;
+- escenarios;
+- mejor opción elegida;
+- Lectura / Plan / Gestión;
+- distribución de decisiones;
+- mini historial con flechas/fade;
 - habilidades.
 
-No muestra una nota global oficial.
+Sin nota global oficial.
 
-## Datos sintéticos e históricos
+## Datos futuros
 
-Dirección de arquitectura:
+Arquitectura objetivo:
 
 ```text
 Exercise
@@ -226,38 +224,17 @@ Exercise
 └── historical licensed (futuro)
 ```
 
-Todos deben poder utilizar el mismo flujo de entrenamiento, scoring, persistencia, historial y perfil.
+Las tres fuentes deben reutilizar el mismo flujo, scoring, persistencia e histórico.
 
-La primera versión no depende de un proveedor comercial de datos.
-
-Para datos históricos reales:
-
-1. resolver derechos de uso;
-2. validar licencia para uso comercial y visualización externa;
-3. integrarlos como otra fuente de `Exercise`;
-4. no convertirlos en recomendaciones sobre mercado actual.
-
-No asumir que datos visibles gratuitamente en Internet pueden redistribuirse comercialmente.
+No integrar históricos reales sin resolver derechos/licencias de uso comercial y visualización.
 
 ## IA
 
-Usos potenciales posteriores:
+Posibles usos futuros: explicación del scoring, resúmenes, detección de patrones y QA.
 
-- explicar el scoring determinista en lenguaje natural;
-- resumir sesiones;
-- detectar patrones de error;
-- adaptar el nivel de detalle del feedback;
-- ayudar internamente al etiquetado y QA.
+No debe inventar la respuesta correcta, sustituir rúbricas ni generar señales actuales.
 
-La IA no debe:
-
-- inventar la respuesta correcta;
-- sustituir las rúbricas;
-- generar señales actuales;
-- predecir mercados como propuesta central;
-- prometer rentabilidad.
-
-No se han asignado capacidades de IA a ningún plan comercial.
+No se han asignado capacidades a planes comerciales.
 
 ## Stack
 
@@ -272,9 +249,9 @@ No se han asignado capacidades de IA a ningún plan comercial.
 - npm
 - Vercel previsto
 
-## Planes y facturación
+## Planes
 
-La infraestructura heredada soporta técnicamente:
+La infraestructura soporta técnicamente:
 
 ```text
 free
@@ -282,61 +259,25 @@ plus
 premium
 ```
 
-Los precios y capacidades finales no están definidos.
+Precios y capacidades finales siguen abiertos. Stripe permanece en Sandbox/Test.
 
-No asumir todavía que IA, datos reales, catálogo ampliado u otras funciones pertenecen a un plan concreto.
-
-Stripe debe permanecer en Sandbox/Test durante el desarrollo inicial.
-
-## Desarrollo local
-
-Instalar dependencias:
+## Desarrollo
 
 ```powershell
 npm ci
 ```
 
-Crear entorno local a partir del ejemplo:
-
 ```powershell
 Copy-Item ".env.example" ".env.local"
 ```
 
-Nunca compartir ni subir `.env.local`.
-
-Arrancar:
+Nunca compartir `.env.local`.
 
 ```powershell
 npm run dev
 ```
 
-Aplicación local normalmente en:
-
-```text
-http://localhost:3000
-```
-
-## Validación
-
-Pruebas:
-
-```powershell
-npm test
-```
-
-Lint:
-
-```powershell
-npm run lint
-```
-
-Build:
-
-```powershell
-npm run build
-```
-
-Validación completa antes de cerrar un bloque:
+Validación completa:
 
 ```powershell
 npm test; npm run lint; npm run build; git diff --check; git status
@@ -344,24 +285,12 @@ npm test; npm run lint; npm run build; git diff --check; git status
 
 No hacer commit/push hasta validar técnica y visualmente el bloque.
 
-## Arquitectura y continuidad
-
-Contexto de negocio:
+## Continuidad
 
 ```text
 PRODUCT_CONTEXT.md
-```
-
-Handoff técnico:
-
-```text
 PROJECT_HANDOFF.md
-```
-
-Fuente de verdad del código:
-
-```text
-Git + PROJECT_SNAPSHOT_<commit>.txt más reciente
+PROJECT_SNAPSHOT_<commit>.txt
 ```
 
 Orden de autoridad:
@@ -371,41 +300,23 @@ Git / snapshot
 → PROJECT_HANDOFF.md
 → PRODUCT_CONTEXT.md
 → README.md
-→ memoria de conversación
+→ memoria
 ```
 
-## Próximos pasos recomendados
+## Próximos pasos
 
-Antes de activar entrenamiento adaptativo completo:
+Tras validar Bloque 13:
 
-1. revisar varias seeds de cada familia actual;
-2. ampliar arquetipos;
-3. crear QA automático del generador;
-4. introducir dificultad explícita;
-5. conectar selección con skills/errores recientes;
-6. estudiar reto diario;
-7. investigar datos históricos licenciables;
-8. evaluar feedback con IA sobre scoring determinista.
-
-Familias candidatas futuras:
-
-- pullback en tendencia;
-- ruptura válida;
-- extremo de rango;
-- compresión;
-- expansión de volatilidad;
-- agotamiento;
-- contexto ambiguo / no operar.
+1. validar las 8 familias y el perfil de 10 habilidades;
+2. diseñar la acción `Esperar` y enriquecer Timing con decisiones diferidas;
+3. dificultad procedural explícita;
+4. selección adaptativa por errores/habilidades;
+5. reto diario;
+6. datos históricos licenciables;
+7. feedback IA sobre scoring determinista.
 
 ## Seguridad y legal
 
-El producto no debe presentarse como:
+El producto no debe presentarse como señales, recomendaciones personalizadas, copy trading, gestión de cartera, predictor de rentabilidad ni garantía de superar evaluaciones.
 
-- señales de inversión;
-- recomendaciones personalizadas;
-- copy trading;
-- gestión de cartera;
-- predictor de rentabilidad;
-- garantía de superar retos/evaluaciones.
-
-Las páginas legales continúan siendo provisionales. Antes de beta pública o lanzamiento comercial debe realizarse una revisión específica del perímetro regulatorio y de la comunicación del producto, incluyendo CNMV cuando corresponda.
+Las páginas legales siguen siendo provisionales y requieren revisión específica antes de beta pública o lanzamiento comercial, incluyendo CNMV cuando corresponda.

@@ -18,7 +18,8 @@ import type {
 
 export const SYNTHETIC_GENERATOR_VERSION = 2;
 export const SYNTHETIC_MAX_SEED = 999_999_999;
-export const SYNTHETIC_RECENT_EXERCISE_LIMIT = 18;
+export const SYNTHETIC_RECENT_EXERCISE_LIMIT = 64;
+const SYNTHETIC_RECENT_SIGNATURE_LIMIT = 40;
 export const SYNTHETIC_ARCHETYPES = SYNTHETIC_EXERCISE_ARCHETYPES;
 
 export type { SyntheticExerciseArchetype } from "../types";
@@ -39,7 +40,7 @@ export type SyntheticScenarioDiagnostics = {
 
 type ArchetypeDefinition = {
   id: SyntheticExerciseArchetype;
-  templateExerciseId: string;
+  templateExerciseId?: string;
 };
 
 type SetupDirection = DirectionalDecision | "neutral";
@@ -69,11 +70,20 @@ const ARCHETYPE_DEFINITIONS: readonly ArchetypeDefinition[] = [
   { id: "trend-continuation", templateExerciseId: "trend-continuation-001" },
   { id: "range-midpoint", templateExerciseId: "range-midpoint-001" },
   { id: "false-breakout", templateExerciseId: "false-breakout-001" },
+  { id: "breakout-acceptance" },
+  { id: "range-extreme" },
+  { id: "compression" },
+  { id: "exhaustion-reversal" },
+  { id: "level-retest" },
 ] as const;
 
-const GENERATED_ID_PATTERN =
-  /^syn-(trend-continuation|range-midpoint|false-breakout)-g(\d+)-s(\d+)$/;
+const GENERATED_ID_PATTERN = /^syn-([a-z0-9-]+)-g(\d+)-s(\d+)$/;
 const SUPPORTED_GENERATOR_VERSIONS = new Set([1, SYNTHETIC_GENERATOR_VERSION]);
+const LEGACY_V1_ARCHETYPES = new Set<SyntheticExerciseArchetype>([
+  "trend-continuation",
+  "range-midpoint",
+  "false-breakout",
+]);
 const REVEAL_COUNT = 12;
 const TIMEFRAME_OPTIONS: readonly ExerciseTimeframe[] = ["5m", "15m", "1h"];
 const TIMEFRAME_MS: Record<ExerciseTimeframe, number> = {
@@ -159,6 +169,11 @@ function getArchetypeDefinition(archetype: SyntheticExerciseArchetype) {
 
 function getTemplateExercise(archetype: SyntheticExerciseArchetype) {
   const definition = getArchetypeDefinition(archetype);
+
+  if (!definition.templateExerciseId) {
+    throw new Error(`El arquetipo ${archetype} no tiene una plantilla legacy g1.`);
+  }
+
   const exercise = getDemoExercise(definition.templateExerciseId);
 
   if (!exercise) {
@@ -196,7 +211,9 @@ export function parseSyntheticExerciseId(
   const seed = Number(match[3]);
 
   if (
+    !SYNTHETIC_ARCHETYPES.includes(archetype) ||
     !SUPPORTED_GENERATOR_VERSIONS.has(generatorVersion) ||
+    (generatorVersion === 1 && !LEGACY_V1_ARCHETYPES.has(archetype)) ||
     !Number.isInteger(seed) ||
     seed < 1 ||
     seed > SYNTHETIC_MAX_SEED
@@ -215,7 +232,7 @@ function getScenarioTraits(
   const timeframe = choose(random, TIMEFRAME_OPTIONS);
   const variant = randomInt(random, 0, 5);
 
-  if (archetype === "range-midpoint") {
+  if (archetype === "range-midpoint" || archetype === "compression") {
     return {
       variant,
       timeframe,
@@ -235,12 +252,53 @@ function getScenarioTraits(
     };
   }
 
+  if (archetype === "breakout-acceptance" || archetype === "level-retest") {
+    return {
+      variant,
+      timeframe,
+      setupDirection: direction,
+      breakoutDirection: direction,
+    };
+  }
+
   return {
     variant,
     timeframe,
     setupDirection: direction === "long" ? "short" : "long",
     breakoutDirection: direction,
   };
+}
+
+function getSyntheticStructuralSignature(
+  archetype: SyntheticExerciseArchetype,
+  seed: number,
+) {
+  const traits = getScenarioTraits(archetype, seed);
+
+  return [
+    archetype,
+    traits.variant,
+    traits.timeframe,
+    traits.setupDirection,
+  ].join(":");
+}
+
+function getRecentStructuralSignatures(exerciseIds: readonly string[]) {
+  const signatures = new Set<string>();
+
+  for (const exerciseId of exerciseIds.slice(0, SYNTHETIC_RECENT_SIGNATURE_LIMIT)) {
+    const descriptor = parseSyntheticExerciseId(exerciseId);
+
+    if (!descriptor || descriptor.generatorVersion !== SYNTHETIC_GENERATOR_VERSION) {
+      continue;
+    }
+
+    signatures.add(
+      getSyntheticStructuralSignature(descriptor.archetype, descriptor.seed),
+    );
+  }
+
+  return signatures;
 }
 
 function appendSegment(
@@ -728,6 +786,584 @@ function buildFalseBreakoutBlueprint(
   return { closes, decisionIndex, revealCount: REVEAL_COUNT, traits };
 }
 
+
+function createBreakoutAcceptanceLevels(
+  variant: number,
+  direction: DirectionalDecision,
+  random: () => number,
+) {
+  const sign = direction === "long" ? 1 : -1;
+  const levels: number[] = [randomBetween(random, -0.18, 0.18)];
+  let side = random() < 0.5 ? -1 : 1;
+  const rotations = 3 + (variant % 2);
+
+  for (let rotation = 0; rotation < rotations; rotation += 1) {
+    const reach = randomBetween(random, 0.62, 0.92);
+    levels.push(side * reach + randomBetween(random, -0.05, 0.05));
+
+    if (random() < 0.45) {
+      levels.push(side * reach * randomBetween(random, 0.28, 0.52));
+    }
+
+    side *= -1;
+  }
+
+  levels.push(sign * randomBetween(random, 0.78, 0.94));
+
+  switch (variant) {
+    case 0:
+      levels.push(
+        sign * randomBetween(random, 1.12, 1.28),
+        sign * randomBetween(random, 1.02, 1.1),
+        sign * randomBetween(random, 1.18, 1.34),
+        sign * randomBetween(random, 1.11, 1.24),
+      );
+      break;
+    case 1:
+      levels.push(
+        sign * randomBetween(random, 1.05, 1.16),
+        sign * randomBetween(random, 1.18, 1.34),
+        sign * randomBetween(random, 1.04, 1.12),
+        sign * randomBetween(random, 1.25, 1.42),
+        sign * randomBetween(random, 1.16, 1.3),
+      );
+      break;
+    case 2:
+      levels.push(
+        sign * randomBetween(random, 0.9, 0.98),
+        sign * randomBetween(random, 1.08, 1.2),
+        sign * randomBetween(random, 1.03, 1.09),
+        sign * randomBetween(random, 1.16, 1.28),
+      );
+      break;
+    case 3:
+      levels.push(
+        sign * randomBetween(random, 1.28, 1.5),
+        sign * randomBetween(random, 1.12, 1.24),
+        sign * randomBetween(random, 1.34, 1.54),
+        sign * randomBetween(random, 1.22, 1.36),
+      );
+      break;
+    case 4:
+      levels.push(
+        sign * randomBetween(random, 1.12, 1.24),
+        sign * randomBetween(random, 1.01, 1.07),
+        sign * randomBetween(random, 1.1, 1.2),
+        sign * randomBetween(random, 1.04, 1.11),
+        sign * randomBetween(random, 1.2, 1.34),
+      );
+      break;
+    case 5:
+      levels.push(
+        sign * randomBetween(random, 1.06, 1.14),
+        sign * randomBetween(random, 1.16, 1.26),
+        sign * randomBetween(random, 1.09, 1.16),
+        sign * randomBetween(random, 1.28, 1.4),
+        sign * randomBetween(random, 1.18, 1.3),
+      );
+      break;
+  }
+
+  return levels;
+}
+
+function buildBreakoutAcceptanceBlueprint(
+  seed: number,
+  traits: ScenarioTraits,
+): ScenarioBlueprint {
+  const random = createDeterministicRandom(seed, "breakout-acceptance:v2:path");
+  const direction = traits.setupDirection as DirectionalDecision;
+  const sign = direction === "long" ? 1 : -1;
+  const { anchor, unit } = createMarketScale(random, traits.timeframe);
+  const halfWidth = unit * randomBetween(random, 2.2, 3.4);
+  const visible = buildPathFromLevels({
+    levels: createBreakoutAcceptanceLevels(traits.variant, direction, random),
+    anchor,
+    unit: halfWidth,
+    random,
+    minimumCandles: 4,
+    maximumCandles: 7,
+    noiseShare: 0.16,
+  });
+  const decisionIndex = visible.length - 1;
+  const closes = [...visible];
+  const decisionLevel = visible[decisionIndex];
+  const futureTargets = [
+    decisionLevel + sign * halfWidth * randomBetween(random, 0.22, 0.38),
+    decisionLevel + sign * halfWidth * randomBetween(random, 0.52, 0.78),
+    decisionLevel + sign * halfWidth * randomBetween(random, 0.86, 1.18),
+  ];
+
+  futureTargets.forEach((target) => {
+    appendSegment(
+      closes,
+      {
+        target,
+        candles: 4,
+        noise: halfWidth * randomBetween(random, 0.06, 0.11),
+        curve: randomBetween(random, 0.78, 1.22),
+      },
+      random,
+    );
+  });
+
+  appendSegment(
+    closes,
+    {
+      target: closes[closes.length - 1] - sign * halfWidth * randomBetween(random, 0.06, 0.16),
+      candles: 3,
+      noise: halfWidth * 0.07,
+    },
+    random,
+  );
+
+  return { closes, decisionIndex, revealCount: REVEAL_COUNT, traits };
+}
+
+function createRangeExtremeLevels(
+  variant: number,
+  testedDirection: DirectionalDecision,
+  random: () => number,
+) {
+  const testedSign = testedDirection === "long" ? 1 : -1;
+  const levels: number[] = [randomBetween(random, -0.2, 0.2)];
+  let side = random() < 0.5 ? -1 : 1;
+  const rotations = 4 + (variant % 3);
+
+  for (let rotation = 0; rotation < rotations; rotation += 1) {
+    const reach = randomBetween(random, 0.66, 0.96);
+    levels.push(side * reach + randomBetween(random, -0.04, 0.04));
+
+    if (random() < 0.38) {
+      levels.push(side * reach * randomBetween(random, 0.3, 0.58));
+    }
+
+    side *= -1;
+  }
+
+  const firstTest = testedSign * randomBetween(random, 0.88, 0.99);
+  levels.push(firstTest);
+
+  switch (variant) {
+    case 0:
+      levels.push(
+        testedSign * randomBetween(random, 0.64, 0.76),
+        testedSign * randomBetween(random, 0.78, 0.9),
+        testedSign * randomBetween(random, 0.58, 0.72),
+      );
+      break;
+    case 1:
+      levels.push(
+        testedSign * randomBetween(random, 0.72, 0.84),
+        testedSign * randomBetween(random, 0.92, 1.0),
+        testedSign * randomBetween(random, 0.62, 0.74),
+      );
+      break;
+    case 2:
+      levels.push(
+        testedSign * randomBetween(random, 0.52, 0.66),
+        testedSign * randomBetween(random, 0.74, 0.86),
+        testedSign * randomBetween(random, 0.5, 0.64),
+      );
+      break;
+    case 3:
+      levels.push(
+        testedSign * randomBetween(random, 0.8, 0.9),
+        testedSign * randomBetween(random, 0.9, 0.98),
+        testedSign * randomBetween(random, 0.68, 0.78),
+      );
+      break;
+    case 4:
+      levels.push(
+        testedSign * randomBetween(random, 0.6, 0.72),
+        testedSign * randomBetween(random, 0.82, 0.93),
+        testedSign * randomBetween(random, 0.56, 0.68),
+      );
+      break;
+    case 5:
+      levels.push(
+        testedSign * randomBetween(random, 0.7, 0.82),
+        testedSign * randomBetween(random, 0.86, 0.95),
+        testedSign * randomBetween(random, 0.76, 0.86),
+        testedSign * randomBetween(random, 0.58, 0.7),
+      );
+      break;
+  }
+
+  return levels;
+}
+
+function buildRangeExtremeBlueprint(
+  seed: number,
+  traits: ScenarioTraits,
+): ScenarioBlueprint {
+  const random = createDeterministicRandom(seed, "range-extreme:v2:path");
+  const testedDirection = traits.breakoutDirection as DirectionalDecision;
+  const testedSign = testedDirection === "long" ? 1 : -1;
+  const reversalDirection = traits.setupDirection as DirectionalDecision;
+  const reversalSign = reversalDirection === "long" ? 1 : -1;
+  const { anchor, unit } = createMarketScale(random, traits.timeframe);
+  const halfWidth = unit * randomBetween(random, 2.35, 3.65);
+  const visible = buildPathFromLevels({
+    levels: createRangeExtremeLevels(traits.variant, testedDirection, random),
+    anchor,
+    unit: halfWidth,
+    random,
+    minimumCandles: 4,
+    maximumCandles: 7,
+    noiseShare: 0.18,
+  });
+  const decisionIndex = visible.length - 1;
+  const closes = [...visible];
+  const futureTargets = [
+    anchor + testedSign * halfWidth * randomBetween(random, 0.18, 0.34),
+    anchor + reversalSign * halfWidth * randomBetween(random, 0.18, 0.38),
+    anchor + reversalSign * halfWidth * randomBetween(random, 0.52, 0.78),
+  ];
+
+  futureTargets.forEach((target) => {
+    appendSegment(
+      closes,
+      {
+        target,
+        candles: 4,
+        noise: halfWidth * randomBetween(random, 0.07, 0.12),
+        curve: randomBetween(random, 0.8, 1.22),
+      },
+      random,
+    );
+  });
+
+  appendSegment(
+    closes,
+    {
+      target: anchor + reversalSign * halfWidth * randomBetween(random, 0.42, 0.66),
+      candles: 3,
+      noise: halfWidth * 0.08,
+    },
+    random,
+  );
+
+  return { closes, decisionIndex, revealCount: REVEAL_COUNT, traits };
+}
+
+function createCompressionLevels(variant: number, random: () => number) {
+  const levels: number[] = [randomBetween(random, -0.16, 0.16)];
+  const rotations = 7 + (variant % 2);
+  let side = random() < 0.5 ? -1 : 1;
+
+  for (let rotation = 0; rotation < rotations; rotation += 1) {
+    const progress = rotation / Math.max(rotations - 1, 1);
+    const contraction = 1 - progress * randomBetween(random, 0.55, 0.72);
+    let center = 0;
+
+    if (variant === 1) {
+      center = progress * 0.2;
+    } else if (variant === 2) {
+      center = -progress * 0.2;
+    } else if (variant === 3) {
+      center = Math.sin(progress * Math.PI) * 0.12;
+    } else if (variant === 4) {
+      center = progress * randomBetween(random, -0.12, 0.12);
+    } else if (variant === 5) {
+      center = rotation % 2 === 0 ? 0.06 : -0.06;
+    }
+
+    let reach = contraction * randomBetween(random, 0.7, 0.98);
+
+    if (variant === 4 && rotation < 2) {
+      reach *= randomBetween(random, 1.05, 1.22);
+    }
+
+    levels.push(center + side * reach);
+
+    if (random() < 0.42) {
+      levels.push(center + side * reach * randomBetween(random, 0.28, 0.5));
+    }
+
+    side *= -1;
+  }
+
+  levels.push(randomBetween(random, -0.12, 0.12));
+  return levels;
+}
+
+function buildCompressionBlueprint(seed: number, traits: ScenarioTraits): ScenarioBlueprint {
+  const random = createDeterministicRandom(seed, "compression:v2:path");
+  const { anchor, unit } = createMarketScale(random, traits.timeframe);
+  const halfWidth = unit * randomBetween(random, 2.1, 3.2);
+  const visible = buildPathFromLevels({
+    levels: createCompressionLevels(traits.variant, random),
+    anchor,
+    unit: halfWidth,
+    random,
+    minimumCandles: 3,
+    maximumCandles: 6,
+    noiseShare: 0.13,
+  });
+  const decisionIndex = visible.length - 1;
+  const closes = [...visible];
+  const expansionSign = random() < 0.5 ? -1 : 1;
+  const futureTargets = [
+    anchor + expansionSign * halfWidth * randomBetween(random, 0.5, 0.72),
+    anchor + expansionSign * halfWidth * randomBetween(random, 1.02, 1.32),
+    anchor + expansionSign * halfWidth * randomBetween(random, 1.34, 1.72),
+  ];
+
+  futureTargets.forEach((target, index) => {
+    appendSegment(
+      closes,
+      {
+        target,
+        candles: index === 0 ? 3 : 4,
+        noise: halfWidth * randomBetween(random, 0.055, 0.1),
+        curve: randomBetween(random, 0.72, 1.18),
+      },
+      random,
+    );
+  });
+
+  appendSegment(
+    closes,
+    {
+      target: closes[closes.length - 1] - expansionSign * halfWidth * randomBetween(random, 0.08, 0.2),
+      candles: 3,
+      noise: halfWidth * 0.07,
+    },
+    random,
+  );
+
+  return { closes, decisionIndex, revealCount: REVEAL_COUNT, traits };
+}
+
+function createExhaustionLevels(
+  variant: number,
+  trendDirection: DirectionalDecision,
+  random: () => number,
+) {
+  const sign = trendDirection === "long" ? 1 : -1;
+  const levels: number[] = [0];
+  let current = 0;
+  let previousImpulse = randomBetween(random, 1.05, 1.45);
+  const cycles = 4 + (variant % 2);
+
+  for (let cycle = 0; cycle < cycles; cycle += 1) {
+    const decay = clamp(1 - cycle * randomBetween(random, 0.09, 0.16), 0.48, 1);
+    const impulse = previousImpulse * decay * randomBetween(random, 0.88, 1.08);
+    current += sign * impulse;
+    levels.push(current);
+
+    const pullbackRatio = clamp(
+      randomBetween(random, 0.26, 0.4) + cycle * randomBetween(random, 0.035, 0.07),
+      0.24,
+      0.62,
+    );
+    current -= sign * impulse * pullbackRatio;
+    levels.push(current);
+    previousImpulse = impulse;
+  }
+
+  const finalPush = previousImpulse * randomBetween(random, 0.28, 0.58);
+  current += sign * finalPush;
+  levels.push(current);
+
+  if (variant === 1 || variant === 4) {
+    current += sign * finalPush * randomBetween(random, 0.12, 0.28);
+    levels.push(current);
+  }
+
+  const rejectionRatio = variant <= 2
+    ? randomBetween(random, 0.9, 1.35)
+    : randomBetween(random, 0.55, 0.88);
+  current -= sign * previousImpulse * rejectionRatio;
+  levels.push(current);
+
+  if (variant === 2 || variant === 5) {
+    current += sign * previousImpulse * randomBetween(random, 0.12, 0.28);
+    levels.push(current);
+    current -= sign * previousImpulse * randomBetween(random, 0.22, 0.42);
+    levels.push(current);
+  }
+
+  return levels;
+}
+
+function buildExhaustionBlueprint(seed: number, traits: ScenarioTraits): ScenarioBlueprint {
+  const random = createDeterministicRandom(seed, "exhaustion-reversal:v2:path");
+  const trendDirection = traits.breakoutDirection as DirectionalDecision;
+  const reversalDirection = traits.setupDirection as DirectionalDecision;
+  const reversalSign = reversalDirection === "long" ? 1 : -1;
+  const { anchor, unit } = createMarketScale(random, traits.timeframe);
+  const visible = buildPathFromLevels({
+    levels: createExhaustionLevels(traits.variant, trendDirection, random),
+    anchor,
+    unit: unit * randomBetween(random, 1.08, 1.42),
+    random,
+    minimumCandles: 4,
+    maximumCandles: 7,
+    noiseShare: 0.31,
+  });
+  const decisionIndex = visible.length - 1;
+  const closes = [...visible];
+  const decisionLevel = visible[decisionIndex];
+  const extension = unit * randomBetween(random, 1.2, 1.7);
+  const futureTargets = [
+    decisionLevel + reversalSign * extension * randomBetween(random, 0.42, 0.68),
+    decisionLevel + reversalSign * extension * randomBetween(random, 0.92, 1.28),
+    decisionLevel + reversalSign * extension * randomBetween(random, 1.42, 1.92),
+  ];
+
+  futureTargets.forEach((target) => {
+    appendSegment(
+      closes,
+      {
+        target,
+        candles: 4,
+        noise: unit * randomBetween(random, 0.22, 0.38),
+        curve: randomBetween(random, 0.75, 1.22),
+      },
+      random,
+    );
+  });
+
+  appendSegment(
+    closes,
+    {
+      target: closes[closes.length - 1] - reversalSign * unit * randomBetween(random, 0.18, 0.42),
+      candles: 3,
+      noise: unit * 0.24,
+    },
+    random,
+  );
+
+  return { closes, decisionIndex, revealCount: REVEAL_COUNT, traits };
+}
+
+function createLevelRetestLevels(
+  variant: number,
+  direction: DirectionalDecision,
+  random: () => number,
+) {
+  const sign = direction === "long" ? 1 : -1;
+  const levels: number[] = [0];
+  const opposite = -sign;
+
+  levels.push(
+    sign * randomBetween(random, 0.72, 0.94),
+    opposite * randomBetween(random, 0.14, 0.34),
+    sign * randomBetween(random, 0.88, 1.02),
+  );
+
+  if (variant === 1 || variant === 4) {
+    levels.push(sign * randomBetween(random, 0.62, 0.78));
+    levels.push(sign * randomBetween(random, 0.92, 1.04));
+  } else {
+    levels.push(opposite * randomBetween(random, 0.02, 0.22));
+  }
+
+  switch (variant) {
+    case 0:
+      levels.push(
+        sign * randomBetween(random, 1.24, 1.42),
+        sign * randomBetween(random, 1.02, 1.1),
+        sign * randomBetween(random, 1.16, 1.28),
+      );
+      break;
+    case 1:
+      levels.push(
+        sign * randomBetween(random, 1.12, 1.24),
+        sign * randomBetween(random, 1.32, 1.48),
+        sign * randomBetween(random, 1.06, 1.14),
+        sign * randomBetween(random, 1.2, 1.32),
+      );
+      break;
+    case 2:
+      levels.push(
+        sign * randomBetween(random, 1.34, 1.56),
+        sign * randomBetween(random, 1.08, 1.18),
+        sign * randomBetween(random, 1.12, 1.2),
+        sign * randomBetween(random, 1.26, 1.38),
+      );
+      break;
+    case 3:
+      levels.push(
+        sign * randomBetween(random, 1.18, 1.3),
+        sign * randomBetween(random, 1.0, 1.08),
+        sign * randomBetween(random, 1.1, 1.2),
+        sign * randomBetween(random, 1.22, 1.34),
+      );
+      break;
+    case 4:
+      levels.push(
+        sign * randomBetween(random, 1.08, 1.18),
+        sign * randomBetween(random, 1.26, 1.4),
+        sign * randomBetween(random, 1.04, 1.12),
+        sign * randomBetween(random, 1.18, 1.28),
+      );
+      break;
+    case 5:
+      levels.push(
+        sign * randomBetween(random, 1.28, 1.46),
+        sign * randomBetween(random, 1.14, 1.24),
+        sign * randomBetween(random, 1.02, 1.1),
+        sign * randomBetween(random, 1.2, 1.34),
+      );
+      break;
+  }
+
+  return levels;
+}
+
+function buildLevelRetestBlueprint(seed: number, traits: ScenarioTraits): ScenarioBlueprint {
+  const random = createDeterministicRandom(seed, "level-retest:v2:path");
+  const direction = traits.setupDirection as DirectionalDecision;
+  const sign = direction === "long" ? 1 : -1;
+  const { anchor, unit } = createMarketScale(random, traits.timeframe);
+  const structureUnit = unit * randomBetween(random, 1.75, 2.45);
+  const visible = buildPathFromLevels({
+    levels: createLevelRetestLevels(traits.variant, direction, random),
+    anchor,
+    unit: structureUnit,
+    random,
+    minimumCandles: 4,
+    maximumCandles: 7,
+    noiseShare: 0.18,
+  });
+  const decisionIndex = visible.length - 1;
+  const closes = [...visible];
+  const decisionLevel = visible[decisionIndex];
+  const futureTargets = [
+    decisionLevel + sign * structureUnit * randomBetween(random, 0.16, 0.28),
+    decisionLevel + sign * structureUnit * randomBetween(random, 0.38, 0.58),
+    decisionLevel + sign * structureUnit * randomBetween(random, 0.66, 0.94),
+  ];
+
+  futureTargets.forEach((target) => {
+    appendSegment(
+      closes,
+      {
+        target,
+        candles: 4,
+        noise: structureUnit * randomBetween(random, 0.055, 0.095),
+        curve: randomBetween(random, 0.8, 1.2),
+      },
+      random,
+    );
+  });
+
+  appendSegment(
+    closes,
+    {
+      target: closes[closes.length - 1] - sign * structureUnit * randomBetween(random, 0.05, 0.14),
+      candles: 3,
+      noise: structureUnit * 0.065,
+    },
+    random,
+  );
+
+  return { closes, decisionIndex, revealCount: REVEAL_COUNT, traits };
+}
+
 function buildBlueprint(
   archetype: SyntheticExerciseArchetype,
   seed: number,
@@ -741,6 +1377,16 @@ function buildBlueprint(
       return buildRangeBlueprint(seed, traits);
     case "false-breakout":
       return buildFalseBreakoutBlueprint(seed, traits);
+    case "breakout-acceptance":
+      return buildBreakoutAcceptanceBlueprint(seed, traits);
+    case "range-extreme":
+      return buildRangeExtremeBlueprint(seed, traits);
+    case "compression":
+      return buildCompressionBlueprint(seed, traits);
+    case "exhaustion-reversal":
+      return buildExhaustionBlueprint(seed, traits);
+    case "level-retest":
+      return buildLevelRetestBlueprint(seed, traits);
   }
 }
 
@@ -807,6 +1453,27 @@ function getAverageTrueRange(candles: readonly Candle[], count = 14) {
   return average(recent.map((candle) => candle.high - candle.low));
 }
 
+function getTradePlanRewardRisk(archetype: SyntheticExerciseArchetype) {
+  switch (archetype) {
+    case "trend-continuation":
+      return { minimum: 1.25, ideal: 2.15 };
+    case "range-midpoint":
+      return { minimum: 1.05, ideal: 1.65 };
+    case "false-breakout":
+      return { minimum: 1.25, ideal: 1.9 };
+    case "breakout-acceptance":
+      return { minimum: 1.2, ideal: 2.05 };
+    case "range-extreme":
+      return { minimum: 1.05, ideal: 1.65 };
+    case "compression":
+      return { minimum: 1.0, ideal: 1.5 };
+    case "exhaustion-reversal":
+      return { minimum: 1.1, ideal: 1.8 };
+    case "level-retest":
+      return { minimum: 1.2, ideal: 2.0 };
+  }
+}
+
 function buildDirectionalPlanRubric(
   candles: readonly Candle[],
   decision: DirectionalDecision,
@@ -821,8 +1488,9 @@ function buildDirectionalPlanRubric(
     ? entry - recentLow + atr * 0.18
     : recentHigh - entry + atr * 0.18;
   const risk = clamp(structuralRisk, atr * 1.05, atr * 2.65);
-  const idealRewardRisk = archetype === "range-midpoint" ? 1.65 : archetype === "false-breakout" ? 1.9 : 2.15;
-  const minimumRewardRisk = archetype === "range-midpoint" ? 1.05 : 1.25;
+  const rewardRisk = getTradePlanRewardRisk(archetype);
+  const idealRewardRisk = rewardRisk.ideal;
+  const minimumRewardRisk = rewardRisk.minimum;
   const stop = decision === "long" ? entry - risk : entry + risk;
   const target = decision === "long"
     ? entry + risk * idealRewardRisk
@@ -1012,7 +1680,7 @@ function buildManagementRubrics(
   archetype: SyntheticExerciseArchetype,
   setupDirection: SetupDirection,
 ): Record<DirectionalDecision, ExerciseManagementRubric> {
-  if (archetype === "range-midpoint") {
+  if (archetype === "range-midpoint" || archetype === "compression") {
     return {
       long: buildNeutralManagementRubric(),
       short: buildNeutralManagementRubric(),
@@ -1118,35 +1786,215 @@ function buildIdeaRubric(
     return { version: 1, decisions };
   }
 
-  const reversal = traits.setupDirection as DirectionalDecision;
-  const continuation: DirectionalDecision = reversal === "long" ? "short" : "long";
+  if (archetype === "false-breakout") {
+    const reversal = traits.setupDirection as DirectionalDecision;
+    const continuation: DirectionalDecision = reversal === "long" ? "short" : "long";
+    const decisions = {
+      long: decisionRubric(
+        { false_breakout: 32, context_reading: 36, discipline: 30 },
+        "Perseguir la ruptura después de perder aceptación es una lectura débil.",
+        ["El precio ya ha vuelto dentro de la estructura previa.", "La aceptación fuera del rango no ha sido estable.", "Continuar en la dirección de la ruptura exige ignorar información reciente."],
+      ),
+      short: decisionRubric(
+        { false_breakout: 32, context_reading: 36, discipline: 30 },
+        "Perseguir la ruptura después de perder aceptación es una lectura débil.",
+        ["El precio ya ha vuelto dentro de la estructura previa.", "La aceptación fuera del rango no ha sido estable.", "Continuar en la dirección de la ruptura exige ignorar información reciente."],
+      ),
+      no_trade: decisionRubric(
+        { false_breakout: 94, context_reading: 90, discipline: 96 },
+        "Esperar es la opción más robusta después de una ruptura que ha perdido aceptación y vuelve a introducir ambigüedad.",
+        ["La ruptura reciente ha fallado en sostenerse.", "La reentrada al rango permite lecturas opuestas a corto plazo.", "No operar evita convertir una reacción violenta en una señal categórica."],
+      ),
+    } satisfies ExerciseRubric["decisions"];
+
+    decisions[reversal] = decisionRubric(
+      { false_breakout: 78, context_reading: 74, discipline: 66 },
+      "La reversión es defendible tras la pérdida de aceptación, pero todavía asume que el rechazo continuará.",
+      ["La vuelta a la estructura previa favorece una lectura de fallo.", "La ruptura ha perdido continuidad.", "La ambigüedad residual mantiene esta opción por debajo de esperar."],
+    );
+    decisions[continuation] = decisionRubric(
+      { false_breakout: 32, context_reading: 36, discipline: 30 },
+      "Seguir la ruptura es débil después de que el mercado haya perdido aceptación fuera del rango.",
+      ["La reentrada invalida parte del argumento de continuación.", "La estructura previa vuelve a ser relevante.", "La disciplina favorece no perseguir un movimiento que ya ha fallado."],
+    );
+
+    return { version: 1, decisions };
+  }
+
+  if (archetype === "breakout-acceptance") {
+    const preferred = traits.setupDirection as DirectionalDecision;
+    const opposite: DirectionalDecision = preferred === "long" ? "short" : "long";
+    const decisions = {
+      long: decisionRubric(
+        { breakout_reading: 28, context_reading: 34, discipline: 30 },
+        "La decisión se coloca contra una ruptura que ya ha empezado a aceptar precio fuera de la estructura previa.",
+        ["El nivel roto no ha recuperado todavía su función anterior.", "El retroceso mantiene aceptación al otro lado del límite.", "Ir contra la ruptura exige una invalidación que aún no aparece."],
+      ),
+      short: decisionRubric(
+        { breakout_reading: 28, context_reading: 34, discipline: 30 },
+        "La decisión se coloca contra una ruptura que ya ha empezado a aceptar precio fuera de la estructura previa.",
+        ["El nivel roto no ha recuperado todavía su función anterior.", "El retroceso mantiene aceptación al otro lado del límite.", "Ir contra la ruptura exige una invalidación que aún no aparece."],
+      ),
+      no_trade: decisionRubric(
+        { breakout_reading: 68, context_reading: 70, discipline: 80 },
+        "Esperar sigue siendo defendible, aunque la aceptación posterior a la ruptura ya ofrece una ventaja direccional reconocible.",
+        ["No perseguir una expansión inicial mantiene disciplina.", "La ruptura ha conservado el nivel en el retesteo.", "Existe una dirección mejor justificada si decides participar."],
+      ),
+    } satisfies ExerciseRubric["decisions"];
+
+    decisions[preferred] = decisionRubric(
+      { breakout_reading: 96, context_reading: 90, discipline: 86 },
+      preferred === "long"
+        ? "La ruptura alcista gana calidad porque el precio acepta por encima del nivel y el retesteo no recupera el rango."
+        : "La ruptura bajista gana calidad porque el precio acepta por debajo del nivel y el retesteo no recupera el rango.",
+      ["La expansión supera una referencia estructural reconocible.", "El retroceso posterior conserva precio al otro lado del nivel roto.", "La continuación se apoya en aceptación, no únicamente en una vela expansiva."],
+    );
+    decisions[opposite] = decisionRubric(
+      { breakout_reading: 28, context_reading: 34, discipline: 30 },
+      "Operar contra una ruptura aceptada exige anticipar un fallo que todavía no está confirmado.",
+      ["El precio sigue respetando el lado nuevo del nivel.", "La estructura posterior a la ruptura no muestra reentrada suficiente.", "La disciplina penaliza adelantarse a una reversión sin evidencia."],
+    );
+
+    return { version: 1, decisions };
+  }
+
+  if (archetype === "range-extreme") {
+    const preferred = traits.setupDirection as DirectionalDecision;
+    const opposite: DirectionalDecision = preferred === "long" ? "short" : "long";
+    const decisions = {
+      long: decisionRubric(
+        { range_reading: 32, context_reading: 36, discipline: 30 },
+        "La decisión persigue el extremo del rango después de que el precio haya empezado a rechazar esa zona.",
+        ["El mercado sigue mostrando límites repetidos.", "La zona extrema ha frenado el movimiento reciente.", "Perseguir el borde reduce el margen disponible dentro del equilibrio."],
+      ),
+      short: decisionRubric(
+        { range_reading: 32, context_reading: 36, discipline: 30 },
+        "La decisión persigue el extremo del rango después de que el precio haya empezado a rechazar esa zona.",
+        ["El mercado sigue mostrando límites repetidos.", "La zona extrema ha frenado el movimiento reciente.", "Perseguir el borde reduce el margen disponible dentro del equilibrio."],
+      ),
+      no_trade: decisionRubric(
+        { range_reading: 74, context_reading: 76, discipline: 86 },
+        "Esperar es razonable en un rango, aunque el rechazo del extremo ofrece una asimetría mejor que desde el centro.",
+        ["La abstención evita anticipar cuánto durará la siguiente rotación.", "El precio ya está reaccionando desde un borde reconocido.", "Existe una opción direccional defendible hacia el interior del rango."],
+      ),
+    } satisfies ExerciseRubric["decisions"];
+
+    decisions[preferred] = decisionRubric(
+      { range_reading: 92, context_reading: 86, discipline: 82 },
+      "La reversión hacia el interior del rango está mejor respaldada después de un rechazo claro en uno de sus extremos.",
+      ["El límite ha sido respetado en rotaciones previas.", "El último test pierde capacidad de seguir expandiendo fuera del equilibrio.", "La operación busca recorrido hacia el interior en lugar de perseguir el extremo."],
+    );
+    decisions[opposite] = decisionRubric(
+      { range_reading: 32, context_reading: 36, discipline: 30 },
+      "Perseguir el extremo es una lectura débil mientras el rango siga siendo la estructura dominante.",
+      ["El borde ha rechazado precio de nuevo.", "No existe aceptación suficiente fuera del equilibrio.", "El espacio disponible en la dirección elegida es reducido."],
+    );
+
+    return { version: 1, decisions };
+  }
+
+  if (archetype === "compression") {
+    return {
+      version: 1,
+      decisions: {
+        long: decisionRubric(
+          { volatility_reading: 40, context_reading: 44, discipline: 36 },
+          "Elegir largo dentro de una compresión todavía no resuelta anticipa una expansión que el gráfico no ha confirmado.",
+          ["Los desplazamientos se hacen progresivamente más pequeños.", "La estructura continúa acumulando energía sin dirección confirmada.", "Entrar antes de la resolución convierte una posibilidad en una conclusión."],
+        ),
+        short: decisionRubric(
+          { volatility_reading: 40, context_reading: 44, discipline: 36 },
+          "Elegir corto dentro de una compresión todavía no resuelta anticipa una expansión que el gráfico no ha confirmado.",
+          ["Los desplazamientos se hacen progresivamente más pequeños.", "La estructura continúa acumulando energía sin dirección confirmada.", "Entrar antes de la resolución convierte una posibilidad en una conclusión."],
+        ),
+        no_trade: decisionRubric(
+          { volatility_reading: 97, context_reading: 92, discipline: 98 },
+          "No operar es la decisión más sólida mientras la compresión no revele hacia qué lado consigue expandirse y aceptar precio.",
+          ["La volatilidad visible se ha contraído.", "Los extremos convergen sin una ruptura confirmada.", "Esperar permite reaccionar a la resolución en lugar de adivinarla."],
+        ),
+      },
+    };
+  }
+
+  if (archetype === "exhaustion-reversal") {
+    const reversal = traits.setupDirection as DirectionalDecision;
+    const continuation: DirectionalDecision = reversal === "long" ? "short" : "long";
+    const clearFailure = traits.variant <= 2;
+    const decisions = {
+      long: decisionRubric(
+        { exhaustion_reading: 30, trend_reading: 34, context_reading: 34, discipline: 28 },
+        "Seguir la tendencia después de una extensión deteriorada ignora señales crecientes de agotamiento.",
+        ["Los impulsos recientes pierden eficiencia.", "Los retrocesos ocupan una parte mayor del avance.", "La última extensión no mantiene la misma calidad estructural."],
+      ),
+      short: decisionRubric(
+        { exhaustion_reading: 30, trend_reading: 34, context_reading: 34, discipline: 28 },
+        "Seguir la tendencia después de una extensión deteriorada ignora señales crecientes de agotamiento.",
+        ["Los impulsos recientes pierden eficiencia.", "Los retrocesos ocupan una parte mayor del avance.", "La última extensión no mantiene la misma calidad estructural."],
+      ),
+      no_trade: decisionRubric(
+        clearFailure
+          ? { exhaustion_reading: 74, trend_reading: 76, context_reading: 78, discipline: 88 }
+          : { exhaustion_reading: 94, trend_reading: 88, context_reading: 92, discipline: 96 },
+        clearFailure
+          ? "Esperar es defendible, aunque el fallo final ya aporta evidencia suficiente para una reversión estructurada."
+          : "No operar es la lectura más robusta cuando la tendencia pierde eficiencia pero el giro todavía no ha confirmado suficiente estructura.",
+        clearFailure
+          ? ["El agotamiento es visible, pero una reversión siempre exige asumir cambio de régimen.", "La última extensión falla con claridad.", "Esperar reduce exposición, aunque existe una alternativa direccional mejor que seguir tendencia."]
+          : ["La tendencia previa todavía pesa en el contexto.", "La pérdida de impulso no equivale por sí sola a una reversión confirmada.", "Esperar evita comprar o vender el primer síntoma de cansancio."],
+      ),
+    } satisfies ExerciseRubric["decisions"];
+
+    decisions[reversal] = decisionRubric(
+      clearFailure
+        ? { exhaustion_reading: 92, trend_reading: 84, context_reading: 86, discipline: 80 }
+        : { exhaustion_reading: 76, trend_reading: 68, context_reading: 72, discipline: 70 },
+      clearFailure
+        ? "La reversión está bien respaldada porque la tendencia pierde eficiencia y la última extensión fracasa con rechazo suficiente."
+        : "La reversión es defendible por agotamiento, pero todavía anticipa un cambio de régimen que no está completamente confirmado.",
+      clearFailure
+        ? ["Los impulsos pierden distancia mientras los retrocesos ganan profundidad.", "La extensión final no consigue sostener el nuevo extremo.", "La reacción posterior rompe el ritmo que mantenía la tendencia."]
+        : ["La tendencia muestra deterioro progresivo.", "Existe un rechazo final, aunque la estructura de giro aún es incompleta.", "La entrada necesita más prudencia que en un fallo plenamente confirmado."],
+    );
+    decisions[continuation] = decisionRubric(
+      { exhaustion_reading: 30, trend_reading: 34, context_reading: 34, discipline: 28 },
+      "Continuar en la dirección previa es débil cuando cada nuevo impulso aporta menos y la última extensión pierde calidad.",
+      ["La eficiencia tendencial se deteriora.", "El último extremo no conserva aceptación.", "Insistir en continuación ignora una transición que ya está afectando a la estructura."],
+    );
+
+    return { version: 1, decisions };
+  }
+
+  const preferred = traits.setupDirection as DirectionalDecision;
+  const opposite: DirectionalDecision = preferred === "long" ? "short" : "long";
   const decisions = {
     long: decisionRubric(
-      { false_breakout: 32, context_reading: 36, discipline: 30 },
-      "Perseguir la ruptura después de perder aceptación es una lectura débil.",
-      ["El precio ya ha vuelto dentro de la estructura previa.", "La aceptación fuera del rango no ha sido estable.", "Continuar en la dirección de la ruptura exige ignorar información reciente."],
+      { retest_reading: 28, trend_reading: 34, context_reading: 32, discipline: 30 },
+      "La decisión contradice un nivel roto que ya ha sido probado desde el lado nuevo sin recuperar la estructura anterior.",
+      ["El precio superó una referencia visible.", "El retroceso volvió hacia el nivel sin recuperar la estructura previa.", "Operar contra el retest exige un fallo que todavía no se ha producido."],
     ),
     short: decisionRubric(
-      { false_breakout: 32, context_reading: 36, discipline: 30 },
-      "Perseguir la ruptura después de perder aceptación es una lectura débil.",
-      ["El precio ya ha vuelto dentro de la estructura previa.", "La aceptación fuera del rango no ha sido estable.", "Continuar en la dirección de la ruptura exige ignorar información reciente."],
+      { retest_reading: 28, trend_reading: 34, context_reading: 32, discipline: 30 },
+      "La decisión contradice un nivel roto que ya ha sido probado desde el lado nuevo sin recuperar la estructura anterior.",
+      ["El precio superó una referencia visible.", "El retroceso volvió hacia el nivel sin recuperar la estructura previa.", "Operar contra el retest exige un fallo que todavía no se ha producido."],
     ),
     no_trade: decisionRubric(
-      { false_breakout: 94, context_reading: 90, discipline: 96 },
-      "Esperar es la opción más robusta después de una ruptura que ha perdido aceptación y vuelve a introducir ambigüedad.",
-      ["La ruptura reciente ha fallado en sostenerse.", "La reentrada al rango permite lecturas opuestas a corto plazo.", "No operar evita convertir una reacción violenta en una señal categórica."],
+      { retest_reading: 68, trend_reading: 70, context_reading: 72, discipline: 82 },
+      "Esperar conserva disciplina, aunque el retest del nivel ya ofrece una lectura de continuación razonablemente definida.",
+      ["No participar evita asumir que el primer retest debe funcionar.", "El nivel sigue sosteniendo el lado nuevo.", "Existe una dirección mejor alineada con la estructura si decides operar."],
     ),
   } satisfies ExerciseRubric["decisions"];
 
-  decisions[reversal] = decisionRubric(
-    { false_breakout: 78, context_reading: 74, discipline: 66 },
-    "La reversión es defendible tras la pérdida de aceptación, pero todavía asume que el rechazo continuará.",
-    ["La vuelta a la estructura previa favorece una lectura de fallo.", "La ruptura ha perdido continuidad.", "La ambigüedad residual mantiene esta opción por debajo de esperar."],
+  decisions[preferred] = decisionRubric(
+    { retest_reading: 95, trend_reading: 88, context_reading: 86, discipline: 84 },
+    preferred === "long"
+      ? "El retest alcista está bien construido: el antiguo techo actúa como soporte y el precio vuelve a ganar tracción desde ese nivel."
+      : "El retest bajista está bien construido: el antiguo suelo actúa como resistencia y el precio vuelve a perder tracción desde ese nivel.",
+    ["La ruptura previa desplazó una referencia estructural.", "El retroceso vuelve al nivel sin recuperar el régimen anterior.", "La reacción posterior confirma que el nivel está funcionando desde el lado nuevo."],
   );
-  decisions[continuation] = decisionRubric(
-    { false_breakout: 32, context_reading: 36, discipline: 30 },
-    "Seguir la ruptura es débil después de que el mercado haya perdido aceptación fuera del rango.",
-    ["La reentrada invalida parte del argumento de continuación.", "La estructura previa vuelve a ser relevante.", "La disciplina favorece no perseguir un movimiento que ya ha fallado."],
+  decisions[opposite] = decisionRubric(
+    { retest_reading: 28, trend_reading: 34, context_reading: 32, discipline: 30 },
+    "Ir contra un retest válido requiere anticipar que el nivel fallará sin evidencia suficiente.",
+    ["La referencia rota sigue sosteniendo precio desde el lado nuevo.", "La estructura de continuación permanece intacta.", "La disciplina favorece no luchar contra una reacción ya confirmada en el nivel."],
   );
 
   return { version: 1, decisions };
@@ -1171,6 +2019,38 @@ function buildSkills(archetype: SyntheticExerciseArchetype) {
         { skill: "false_breakout" as const, weight: 0.55 },
         { skill: "context_reading" as const, weight: 0.25 },
         { skill: "discipline" as const, weight: 0.2 },
+      ];
+    case "breakout-acceptance":
+      return [
+        { skill: "breakout_reading" as const, weight: 0.55 },
+        { skill: "context_reading" as const, weight: 0.25 },
+        { skill: "discipline" as const, weight: 0.2 },
+      ];
+    case "range-extreme":
+      return [
+        { skill: "range_reading" as const, weight: 0.55 },
+        { skill: "context_reading" as const, weight: 0.25 },
+        { skill: "discipline" as const, weight: 0.2 },
+      ];
+    case "compression":
+      return [
+        { skill: "volatility_reading" as const, weight: 0.55 },
+        { skill: "context_reading" as const, weight: 0.25 },
+        { skill: "discipline" as const, weight: 0.2 },
+      ];
+    case "exhaustion-reversal":
+      return [
+        { skill: "exhaustion_reading" as const, weight: 0.45 },
+        { skill: "trend_reading" as const, weight: 0.25 },
+        { skill: "context_reading" as const, weight: 0.2 },
+        { skill: "discipline" as const, weight: 0.1 },
+      ];
+    case "level-retest":
+      return [
+        { skill: "retest_reading" as const, weight: 0.45 },
+        { skill: "trend_reading" as const, weight: 0.25 },
+        { skill: "context_reading" as const, weight: 0.2 },
+        { skill: "discipline" as const, weight: 0.1 },
       ];
   }
 }
@@ -1489,6 +2369,7 @@ export function selectSyntheticExercise(options: {
     SYNTHETIC_RECENT_EXERCISE_LIMIT,
   );
   const recentSet = new Set(recentExerciseIds);
+  const recentStructuralSignatures = getRecentStructuralSignatures(recentExerciseIds);
   const currentDescriptor = options.currentExerciseId
     ? parseSyntheticExerciseId(options.currentExerciseId)
     : null;
@@ -1506,17 +2387,35 @@ export function selectSyntheticExercise(options: {
   );
   const selectedArchetype = choose(random, leastSeenCandidates);
 
-  for (let attempt = 0; attempt < 96; attempt += 1) {
+  let validFallback: Exercise | null = null;
+
+  for (let attempt = 0; attempt < 128; attempt += 1) {
     const seed = 1 + Math.floor(random() * SYNTHETIC_MAX_SEED);
     const exerciseId = createSyntheticExerciseId(selectedArchetype, seed);
 
-    if (exerciseId !== options.currentExerciseId && !recentSet.has(exerciseId)) {
-      try {
-        return generateV2SyntheticExercise(selectedArchetype, seed);
-      } catch {
-        // Una seed que no supera los invariantes se descarta y el selector prueba otra.
-      }
+    if (exerciseId === options.currentExerciseId || recentSet.has(exerciseId)) {
+      continue;
     }
+
+    try {
+      const exercise = generateV2SyntheticExercise(selectedArchetype, seed);
+      validFallback ??= exercise;
+
+      const structuralSignature = getSyntheticStructuralSignature(
+        selectedArchetype,
+        seed,
+      );
+
+      if (!recentStructuralSignatures.has(structuralSignature)) {
+        return exercise;
+      }
+    } catch {
+      // Una seed que no supera los invariantes se descarta y el selector prueba otra.
+    }
+  }
+
+  if (validFallback) {
+    return validFallback;
   }
 
   throw new Error("No se pudo seleccionar un escenario sintético válido y no repetido.");

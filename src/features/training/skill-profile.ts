@@ -20,6 +20,7 @@ export type SkillProfileAttempt = {
   exerciseId: string;
   createdAt: string;
   skillScores: readonly SkillProfileAttemptScore[];
+  entryTimingScore: number | null;
 };
 
 export type SkillProfileMetric = {
@@ -93,6 +94,24 @@ function parseSkillScores(
   return scores;
 }
 
+function parseEntryTimingScore(value: unknown): number | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  for (const item of value) {
+    if (
+      isRecord(item) &&
+      item.component === "entry" &&
+      isScore(item.score)
+    ) {
+      return item.score;
+    }
+  }
+
+  return null;
+}
+
 export function parseSkillProfileAttempt(
   value: unknown,
 ): SkillProfileAttempt | null {
@@ -118,6 +137,7 @@ export function parseSkillProfileAttempt(
     exerciseId: value.exercise_id,
     createdAt: value.created_at,
     skillScores,
+    entryTimingScore: parseEntryTimingScore(value.plan_component_scores),
   };
 }
 
@@ -194,6 +214,17 @@ function getSignalSkills(
   };
 }
 
+function getAttemptSkillScore(
+  attempt: SkillProfileAttempt,
+  skill: TrainingSkill,
+) {
+  if (skill === "entry_timing") {
+    return attempt.entryTimingScore;
+  }
+
+  return attempt.skillScores.find((item) => item.skill === skill)?.score ?? null;
+}
+
 export function buildSkillProfile(
   attempts: readonly SkillProfileAttempt[],
 ): SkillProfile {
@@ -202,15 +233,13 @@ export function buildSkillProfile(
     const exerciseIds = new Set<string>();
 
     for (const attempt of attempts) {
-      const skillScore = attempt.skillScores.find(
-        (item) => item.skill === skill,
-      );
+      const score = getAttemptSkillScore(attempt, skill);
 
-      if (!skillScore) {
+      if (score === null) {
         continue;
       }
 
-      observations.push(skillScore.score);
+      observations.push(score);
       exerciseIds.add(attempt.exerciseId);
     }
 

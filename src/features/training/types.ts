@@ -12,6 +12,11 @@ export const TRAINING_SKILLS = [
   "range_reading",
   "discipline",
   "false_breakout",
+  "breakout_reading",
+  "volatility_reading",
+  "exhaustion_reading",
+  "retest_reading",
+  "entry_timing",
 ] as const;
 
 export type TrainingSkill = (typeof TRAINING_SKILLS)[number];
@@ -22,6 +27,11 @@ export const SYNTHETIC_EXERCISE_ARCHETYPES = [
   "trend-continuation",
   "range-midpoint",
   "false-breakout",
+  "breakout-acceptance",
+  "range-extreme",
+  "compression",
+  "exhaustion-reversal",
+  "level-retest",
 ] as const;
 
 export type SyntheticExerciseArchetype =

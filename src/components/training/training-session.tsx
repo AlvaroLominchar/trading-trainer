@@ -12,6 +12,7 @@ import {
   selectSyntheticExercise,
   SYNTHETIC_RECENT_EXERCISE_LIMIT,
 } from "@/features/training/exercises/synthetic-catalog";
+import { buildEvaluationExplanations } from "@/features/training/evaluation-explanations";
 import {
   applyManagedStop,
   calculateProtectedRiskR,
@@ -62,6 +63,11 @@ const SKILL_LABELS: Record<TrainingSkill, string> = {
   range_reading: "Rango",
   discipline: "Disciplina",
   false_breakout: "Falsas rupturas",
+  breakout_reading: "Rupturas",
+  volatility_reading: "Volatilidad",
+  exhaustion_reading: "Agotamiento",
+  retest_reading: "Retests",
+  entry_timing: "Timing",
 };
 
 const PLAN_COMPONENT_LABELS: Record<TradePlanComponent, string> = {
@@ -273,7 +279,7 @@ function getDecisionMetaLabel(decision: TrainingDecision | null) {
 
 function getPlanSummary(decision: TrainingDecision | null) {
   if (decision === "no_trade") {
-    return "Sin plan · No operaste";
+    return "No operaste";
   }
 
   return "Plan pendiente";
@@ -898,6 +904,15 @@ export function TrainingSession({
     ? getEvaluationSummaryScore(result, tradePlanResult, managementScore)
     : null;
 
+  const evaluationExplanations = result
+    ? buildEvaluationExplanations({
+        result,
+        tradePlanResult,
+        managementScore,
+        managementFallbackDetail: managementOutcome?.detail ?? null,
+      })
+    : [];
+
   const managementProgress = Math.round(
     (revealedCount / Math.max(exercise.revealCount, 1)) * 100,
   );
@@ -988,7 +1003,7 @@ export function TrainingSession({
                       {managementScore
                         ? getManagementRating(managementScore.overallScore)
                         : result.decision === "no_trade"
-                          ? "Sin gestión · No operaste"
+                          ? "No operaste"
                           : "Sin checkpoint puntuado"}
                     </p>
                   </div>
@@ -1055,10 +1070,19 @@ export function TrainingSession({
                   <div>
                     <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-app-text">Por qué</h3>
                     <div className="mt-4 divide-y divide-app-border border-y border-app-border">
-                      {result.reasons.map((reason, index) => (
-                        <div className="flex gap-3 py-3" key={reason}>
-                          <span className="mt-0.5 font-mono text-[9px] text-app-text-muted">{String(index + 1).padStart(2, "0")}</span>
-                          <p className="text-sm leading-6 text-app-text-soft">{reason}</p>
+                      {evaluationExplanations.map((explanation) => (
+                        <div
+                          className="grid gap-3 py-3 sm:grid-cols-[108px_minmax(0,1fr)] sm:items-start sm:gap-4"
+                          key={explanation.dimension}
+                        >
+                          <div>
+                            <span className="inline-flex min-h-7 items-center justify-center rounded-full border border-white/35 bg-white/[0.035] px-3 font-mono text-[8px] uppercase tracking-[0.15em] text-app-text shadow-[0_0_14px_rgba(255,255,255,0.08)]">
+                              {explanation.label}
+                            </span>
+                          </div>
+                          <p className="text-sm leading-6 text-app-text-soft">
+                            {explanation.text}
+                          </p>
                         </div>
                       ))}
                     </div>

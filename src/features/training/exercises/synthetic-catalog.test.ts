@@ -19,6 +19,7 @@ import {
   selectSyntheticExercise,
   SYNTHETIC_ARCHETYPES,
   SYNTHETIC_GENERATOR_VERSION,
+  SYNTHETIC_RECENT_EXERCISE_LIMIT,
   validateSyntheticExercise,
 } from "./synthetic-catalog";
 
@@ -93,6 +94,21 @@ function getPairwiseShapeDistances(
 }
 
 describe("synthetic exercise generator v2", () => {
+  it("expone ocho familias pedagógicas sin duplicar arquetipos", () => {
+    expect(SYNTHETIC_ARCHETYPES).toHaveLength(8);
+    expect(new Set(SYNTHETIC_ARCHETYPES).size).toBe(8);
+    expect(SYNTHETIC_ARCHETYPES).toEqual([
+      "trend-continuation",
+      "range-midpoint",
+      "false-breakout",
+      "breakout-acceptance",
+      "range-extreme",
+      "compression",
+      "exhaustion-reversal",
+      "level-retest",
+    ]);
+  });
+
   it("reproduce exactamente el mismo escenario para la misma seed", () => {
     const first = generateSyntheticExercise("trend-continuation", 42);
     const second = generateSyntheticExercise("trend-continuation", 42);
@@ -158,7 +174,7 @@ describe("synthetic exercise generator v2", () => {
 
       expect(exercise.source.label).toBe("Escenario sintético");
       expect(visibleCopy.toLowerCase()).not.toMatch(
-        /tendencia|rango|ruptura|breakout|alcista|bajista|continuaci[oó]n/,
+        /tendencia|rango|ruptura|breakout|alcista|bajista|continuaci[oó]n|compresi[oó]n|agotamiento|retest/,
       );
     },
   );
@@ -252,6 +268,72 @@ describe("synthetic exercise generator v2", () => {
     }
   });
 
+  it.each(["breakout-acceptance", "range-extreme", "level-retest"] as const)(
+    "premia la dirección estructural en %s y mantiene esperar como alternativa defendible",
+    (archetype) => {
+      for (let seed = 1; seed <= 36; seed += 1) {
+        const exercise = generateSyntheticExercise(archetype, seed);
+        const preferred = getGeneration(exercise).setupDirection;
+
+        if (preferred !== "long" && preferred !== "short") {
+          throw new Error(`${archetype} debe tener una dirección preferida.`);
+        }
+
+        const opposite = preferred === "long" ? "short" : "long";
+        const preferredScore = getDecisionScore(exercise, preferred);
+        const waitScore = getDecisionScore(exercise, "no_trade");
+        const oppositeScore = getDecisionScore(exercise, opposite);
+
+        expect(preferredScore).toBeGreaterThanOrEqual(85);
+        expect(preferredScore).toBeGreaterThan(waitScore);
+        expect(waitScore).toBeGreaterThan(oppositeScore);
+      }
+    },
+  );
+
+  it("premia esperar mientras la compresión todavía no ha resuelto dirección", () => {
+    for (let seed = 1; seed <= 36; seed += 1) {
+      const exercise = generateSyntheticExercise("compression", seed);
+
+      expect(getGeneration(exercise).setupDirection).toBe("neutral");
+      expect(getDecisionScore(exercise, "no_trade")).toBeGreaterThanOrEqual(85);
+      expect(getDecisionScore(exercise, "no_trade")).toBeGreaterThan(
+        getDecisionScore(exercise, "long"),
+      );
+      expect(getDecisionScore(exercise, "no_trade")).toBeGreaterThan(
+        getDecisionScore(exercise, "short"),
+      );
+    }
+  });
+
+  it("distingue agotamientos claros de transiciones todavía ambiguas", () => {
+    for (let seed = 1; seed <= 72; seed += 1) {
+      const exercise = generateSyntheticExercise("exhaustion-reversal", seed);
+      const generation = getGeneration(exercise);
+      const reversal = generation.setupDirection;
+
+      if (reversal !== "long" && reversal !== "short") {
+        throw new Error("Exhaustion reversal debe tener una dirección de reversión.");
+      }
+
+      const continuation = reversal === "long" ? "short" : "long";
+      const reversalScore = getDecisionScore(exercise, reversal);
+      const waitScore = getDecisionScore(exercise, "no_trade");
+      const continuationScore = getDecisionScore(exercise, continuation);
+
+      if ((generation.variant ?? 0) <= 2) {
+        expect(reversalScore).toBeGreaterThanOrEqual(85);
+        expect(reversalScore).toBeGreaterThan(waitScore);
+      } else {
+        expect(waitScore).toBeGreaterThanOrEqual(85);
+        expect(waitScore).toBeGreaterThan(reversalScore);
+        expect(reversalScore).toBeGreaterThanOrEqual(60);
+      }
+
+      expect(continuationScore).toBeLessThan(60);
+    }
+  });
+
   it.each(SYNTHETIC_ARCHETYPES)(
     "crea planes operables y bien puntuados para múltiples seeds de %s",
     (archetype: SyntheticExerciseArchetype) => {
@@ -310,6 +392,7 @@ describe("synthetic exercise ids and resolver", () => {
     expect(resolveTrainingExercise("trend-continuation-001", 1)?.id).toBe(
       "trend-continuation-001",
     );
+    expect(parseSyntheticExerciseId("syn-compression-g1-s1234")).toBeNull();
   });
 });
 
@@ -327,27 +410,28 @@ describe("synthetic exercise selector", () => {
     expect(next.version).toBe(SYNTHETIC_GENERATOR_VERSION);
   });
 
-  it("favorece familias menos vistas dentro del historial reciente", () => {
-    const recent = [
-      createSyntheticExerciseId("trend-continuation", 1),
-      createSyntheticExerciseId("trend-continuation", 2),
-      createSyntheticExerciseId("range-midpoint", 3),
-    ];
+  it("favorece una familia no vista cuando las demás ya tienen exposición reciente", () => {
+    const missingArchetype = "compression" as const;
+    const recent = SYNTHETIC_ARCHETYPES.filter(
+      (archetype) => archetype !== missingArchetype,
+    ).map((archetype, index) => createSyntheticExerciseId(archetype, index + 1));
     const next = selectSyntheticExercise({
       recentExerciseIds: recent,
-      currentExerciseId: recent[2],
+      currentExerciseId: recent[0],
       selectionSeed: 12345,
     });
 
-    expect(next.source.generation?.archetype).toBe("false-breakout");
+    expect(next.source.generation?.archetype).toBe(missingArchetype);
     expect(recent).not.toContain(next.id);
   });
 
-  it("entrega únicamente escenarios v2 que superan el validador", () => {
-    let currentExerciseId: string | null = null;
-    const recentExerciseIds: string[] = [];
+  it("entrega únicamente escenarios v2 válidos y evita repetir IDs en una ventana amplia", () => {
+    expect(SYNTHETIC_RECENT_EXERCISE_LIMIT).toBe(64);
 
-    for (let index = 0; index < 30; index += 1) {
+    let currentExerciseId: string | null = null;
+    let recentExerciseIds: string[] = [];
+
+    for (let index = 0; index < 96; index += 1) {
       const next = selectSyntheticExercise({
         recentExerciseIds,
         currentExerciseId,
@@ -358,7 +442,45 @@ describe("synthetic exercise selector", () => {
       expect(validateSyntheticExercise(next).valid).toBe(true);
       expect(recentExerciseIds).not.toContain(next.id);
 
-      recentExerciseIds.unshift(next.id);
+      recentExerciseIds = [next.id, ...recentExerciseIds].slice(
+        0,
+        SYNTHETIC_RECENT_EXERCISE_LIMIT,
+      );
+      currentExerciseId = next.id;
+    }
+  });
+
+  it("evita repetir una firma estructural reciente cuando puede elegir otra seed", () => {
+    let currentExerciseId: string | null = null;
+    let recentExerciseIds: string[] = [];
+    let recentSignatures: string[] = [];
+
+    for (let index = 0; index < 80; index += 1) {
+      const next = selectSyntheticExercise({
+        recentExerciseIds,
+        currentExerciseId,
+        selectionSeed: 80_000 + index,
+      });
+      const generation = next.source.generation;
+
+      expect(generation?.archetype).toBeDefined();
+      expect(generation?.variant).toBeDefined();
+      expect(generation?.setupDirection).toBeDefined();
+
+      const signature = [
+        generation?.archetype,
+        generation?.variant,
+        next.timeframe,
+        generation?.setupDirection,
+      ].join(":");
+
+      expect(recentSignatures.slice(0, 32)).not.toContain(signature);
+
+      recentSignatures = [signature, ...recentSignatures].slice(0, 40);
+      recentExerciseIds = [next.id, ...recentExerciseIds].slice(
+        0,
+        SYNTHETIC_RECENT_EXERCISE_LIMIT,
+      );
       currentExerciseId = next.id;
     }
   });
