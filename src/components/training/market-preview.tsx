@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
@@ -338,16 +339,35 @@ export function MarketPreview({
           />
         ) : null}
 
+        <rect
+          fill="var(--theme-text)"
+          fillOpacity={isFullyRevealed ? 0.045 : 0.03}
+          height={CHART_BOTTOM - CHART_TOP + 20}
+          rx="5"
+          width="12"
+          x={decisionLineX - 6}
+          y={CHART_TOP - 10}
+        />
         <line
-          stroke="var(--theme-border-strong)"
-          strokeDasharray="4 5"
-          strokeOpacity={isFullyRevealed ? 0.34 : 0.58}
-          strokeWidth="1"
+          stroke="var(--theme-text-soft)"
+          strokeDasharray="3 4"
+          strokeOpacity={isFullyRevealed ? 0.82 : 0.7}
+          strokeWidth="1.65"
           vectorEffect="non-scaling-stroke"
           x1={decisionLineX}
           x2={decisionLineX}
-          y1={CHART_TOP - 8}
-          y2={CHART_BOTTOM + 8}
+          y1={CHART_TOP - 10}
+          y2={CHART_BOTTOM + 10}
+        />
+        <path
+          d={`M ${decisionLineX - 5} ${CHART_TOP - 12} L ${decisionLineX + 5} ${CHART_TOP - 12} L ${decisionLineX} ${CHART_TOP - 5} Z`}
+          fill="var(--theme-text-soft)"
+          fillOpacity={isFullyRevealed ? 0.88 : 0.76}
+        />
+        <path
+          d={`M ${decisionLineX - 5} ${CHART_BOTTOM + 12} L ${decisionLineX + 5} ${CHART_BOTTOM + 12} L ${decisionLineX} ${CHART_BOTTOM + 5} Z`}
+          fill="var(--theme-text-soft)"
+          fillOpacity={isFullyRevealed ? 0.88 : 0.76}
         />
 
         {planLines.map(({ line, label, value, stroke, dash }) => {

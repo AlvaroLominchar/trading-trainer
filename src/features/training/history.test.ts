@@ -12,6 +12,7 @@ import {
 function getBaseRow() {
   return {
     id: "11111111-1111-4111-8111-111111111111",
+    exercise_id: "trend-continuation-001",
     exercise_title: "Continuación bajista",
     timeframe: "15m",
     decision: "short",
@@ -78,6 +79,7 @@ describe("parseTrainingHistoryAttempt", () => {
   it("normaliza un intento direccional completo", () => {
     const result = parseTrainingHistoryAttempt(getBaseRow());
 
+    expect(result?.exerciseId).toBe("trend-continuation-001");
     expect(result?.decision).toBe("short");
     expect(result?.tradePlan?.stop).toBe(87.2);
     expect(result?.skillScores).toHaveLength(2);

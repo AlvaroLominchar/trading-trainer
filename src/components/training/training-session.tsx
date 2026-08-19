@@ -7,7 +7,11 @@ import { MarketPreview } from "@/components/training/market-preview";
 import {
   type TrainingManagementActionSubmission,
 } from "@/features/training/attempt-persistence";
-import { DEMO_EXERCISES } from "@/features/training/exercises/demo-exercises";
+import {
+  createSyntheticSelectionSeed,
+  selectSyntheticExercise,
+  SYNTHETIC_RECENT_EXERCISE_LIMIT,
+} from "@/features/training/exercises/synthetic-catalog";
 import {
   applyManagedStop,
   calculateProtectedRiskR,
@@ -29,6 +33,7 @@ import {
 import type {
   AttemptRating,
   DirectionalDecision,
+  Exercise,
   ExerciseAttemptResult,
   ExerciseTimeframe,
   ManagementAction,
@@ -288,8 +293,22 @@ function getOutcomeLabel(
   return "Vela ambigua · stop y objetivo tocados";
 }
 
-export function TrainingSession() {
-  const [exerciseIndex, setExerciseIndex] = useState(0);
+export function TrainingSession({
+  initialExercise,
+  initialRecentExerciseIds,
+}: {
+  initialExercise: Exercise;
+  initialRecentExerciseIds: readonly string[];
+}) {
+  const [exercise, setExercise] = useState(initialExercise);
+  const [exerciseNumber, setExerciseNumber] = useState(1);
+  const [recentExerciseIds, setRecentExerciseIds] = useState<readonly string[]>(
+    () =>
+      Array.from(new Set([initialExercise.id, ...initialRecentExerciseIds])).slice(
+        0,
+        SYNTHETIC_RECENT_EXERCISE_LIMIT,
+      ),
+  );
   const [decision, setDecision] = useState<TrainingDecision | null>(null);
   const [tradePlan, setTradePlan] = useState<TradePlan | null>(null);
   const [confidence, setConfidence] = useState(70);
@@ -320,7 +339,6 @@ export function TrainingSession() {
   const savingAttemptIdRef = useRef<string | null>(null);
   const savedAttemptIdRef = useRef<string | null>(null);
 
-  const exercise = DEMO_EXERCISES[exerciseIndex];
   const directionalDecision = isDirectionalDecision(decision) ? decision : null;
   const managementCheckpoints = useMemo(
     () =>
@@ -719,9 +737,24 @@ export function TrainingSession() {
 
   function handleNextExercise() {
     clearTimer();
-    const nextIndex = (exerciseIndex + 1) % DEMO_EXERCISES.length;
+    const nextExercise = selectSyntheticExercise({
+      recentExerciseIds,
+      currentExerciseId: exercise.id,
+      selectionSeed: createSyntheticSelectionSeed([
+        exercise.id,
+        String(exerciseNumber),
+        ...recentExerciseIds,
+      ]),
+    });
 
-    setExerciseIndex(nextIndex);
+    setExercise(nextExercise);
+    setExerciseNumber((current) => current + 1);
+    setRecentExerciseIds((current) =>
+      [nextExercise.id, ...current.filter((exerciseId) => exerciseId !== nextExercise.id)].slice(
+        0,
+        SYNTHETIC_RECENT_EXERCISE_LIMIT,
+      ),
+    );
     setDecision(null);
     setTradePlan(null);
     setConfidence(70);
@@ -883,7 +916,7 @@ export function TrainingSession() {
             </span>
             <span className="size-1 rounded-full bg-app-text-muted" />
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
-              {String(exerciseIndex + 1).padStart(2, "0")} / {String(DEMO_EXERCISES.length).padStart(2, "0")}
+              {`Sesión ${String(exerciseNumber).padStart(2, "0")}`}
             </span>
           </div>
 
@@ -912,7 +945,7 @@ export function TrainingSession() {
                 <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted xl:justify-start">
                   <span>Resultado</span>
                   <span className="size-1 rounded-full bg-app-text-muted" />
-                  <span>Escenario {String(exerciseIndex + 1).padStart(3, "0")}</span>
+                  <span>Escenario sintético</span>
                 </div>
 
                 <div className="mx-auto mt-5 max-w-2xl text-center xl:mx-0 xl:max-w-none">
@@ -1182,7 +1215,7 @@ export function TrainingSession() {
             <div className="mb-3 flex flex-col gap-2 px-1 sm:px-2">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">Escenario {String(exerciseIndex + 1).padStart(3, "0")}</span>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">Escenario sintético</span>
                   <h2 className="mt-1 text-sm font-medium text-app-text">{exercise.title}</h2>
                 </div>
                 <div className="flex items-center gap-2">

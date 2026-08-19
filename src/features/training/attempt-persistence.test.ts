@@ -85,6 +85,24 @@ describe("evaluateTrainingAttemptSubmission", () => {
     expect(movedStop?.protectedRiskR).toBeCloseTo(0.5, 6);
   });
 
+
+  it("reconstruye y evalúa en servidor un escenario procedural solo a partir de su ID y versión", () => {
+    const result = evaluateTrainingAttemptSubmission(
+      getBaseSubmission({
+        exerciseId: "syn-range-midpoint-g2-s4242",
+        exerciseVersion: 2,
+        decision: "no_trade",
+        tradePlan: null,
+        managementActions: [],
+      }),
+    );
+
+    expect(result.exerciseId).toBe("syn-range-midpoint-g2-s4242");
+    expect(result.exerciseVersion).toBe(2);
+    expect(result.sourceKind).toBe("synthetic");
+    expect(result.ideaScore).toBeGreaterThanOrEqual(85);
+  });
+
   it("rechaza un plan enviado para no operar", () => {
     expect(() =>
       evaluateTrainingAttemptSubmission(

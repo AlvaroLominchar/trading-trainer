@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRef, useState } from "react";
 
 import type {
   DashboardRecentAttempt,
@@ -151,13 +154,37 @@ function DecisionDonut({ summary }: { summary: TrainingDashboardSummary }) {
   );
 }
 
+function getDecisionPillClass(decision: DashboardRecentAttempt["decision"]) {
+  if (decision === "long") {
+    return "border-emerald-400/90 bg-white/10 text-emerald-300 shadow-[0_0_12px_rgba(34,197,94,0.22),inset_0_0_10px_rgba(34,197,94,0.05)]";
+  }
+
+  if (decision === "short") {
+    return "border-rose-400/90 bg-white/10 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.2),inset_0_0_10px_rgba(244,63,94,0.05)]";
+  }
+
+  return "border-white/30 bg-white/10 text-white/90";
+}
+
 function RecentAttemptRow({ attempt }: { attempt: DashboardRecentAttempt }) {
   return (
-    <div className="rounded-2xl border border-app-border bg-app-page-soft/55 p-4">
+    <div className="relative rounded-2xl border border-app-border bg-app-page-soft/55 p-4">
+      {attempt.hasPerformanceSeal ? (
+        <div
+          aria-label="Intento destacado"
+          className="absolute -right-2.5 -top-2.5 z-20 grid size-7 place-items-center rounded-full border border-amber-300/90 bg-white/10 text-[13px] leading-none text-amber-300 shadow-[0_0_14px_rgba(251,191,36,0.28),inset_0_0_9px_rgba(251,191,36,0.05)] backdrop-blur-sm"
+          title="Intento destacado"
+        >
+          ★
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-app-border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
+            <span
+              className={`rounded-full border px-2.5 py-1 font-mono text-[8px] font-medium uppercase tracking-[0.12em] ${getDecisionPillClass(attempt.decision)}`}
+            >
               {attempt.decisionLabel}
             </span>
             <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
@@ -192,6 +219,117 @@ function RecentAttemptRow({ attempt }: { attempt: DashboardRecentAttempt }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+
+function HistoryArrow({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "up" | "down";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={direction === "up" ? "Subir en el historial reciente" : "Bajar en el historial reciente"}
+      className="group mx-auto grid h-8 w-12 shrink-0 place-items-center rounded-full border border-app-border-strong bg-app-surface-active text-app-text shadow-[0_0_18px_rgba(255,255,255,0.06)] transition hover:border-app-text-muted hover:bg-app-page-soft hover:shadow-[0_0_22px_rgba(255,255,255,0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-border-strong disabled:cursor-default disabled:opacity-35 disabled:shadow-none disabled:hover:border-app-border-strong disabled:hover:bg-app-surface-active"
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      <span
+        aria-hidden="true"
+        className={`block size-0 border-x-[5px] border-x-transparent transition-transform group-hover:scale-110 group-disabled:scale-100 ${
+          direction === "up"
+            ? "border-b-[7px] border-b-current"
+            : "border-t-[7px] border-t-current"
+        }`}
+      />
+    </button>
+  );
+}
+
+function RecentHistoryScroller({
+  attempts,
+}: {
+  attempts: readonly DashboardRecentAttempt[];
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const canScroll = attempts.length > 4;
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(canScroll);
+
+  function updateScrollState(element: HTMLDivElement) {
+    setCanScrollUp(element.scrollTop > 2);
+    setCanScrollDown(
+      element.scrollTop + element.clientHeight < element.scrollHeight - 2,
+    );
+  }
+
+  function scrollHistory(direction: "up" | "down") {
+    scrollRef.current?.scrollBy({
+      behavior: "smooth",
+      top: direction === "up" ? -150 : 150,
+    });
+  }
+
+  return (
+    <div className="mt-5 flex h-[500px] min-h-0 flex-col xl:h-auto xl:flex-1">
+      {canScroll ? (
+        <HistoryArrow
+          direction="up"
+          disabled={!canScrollUp}
+          onClick={() => scrollHistory("up")}
+        />
+      ) : null}
+
+      <div className={`relative min-h-0 flex-1 ${canScroll ? "my-1" : ""}`}>
+        <div
+          className="h-full space-y-3 overflow-y-auto pl-0.5 pr-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={(event) => updateScrollState(event.currentTarget)}
+          ref={scrollRef}
+          style={
+            canScrollUp && canScrollDown
+              ? {
+                  WebkitMaskImage:
+                    "linear-gradient(to bottom, transparent 0, black 46px, black calc(100% - 46px), transparent 100%)",
+                  maskImage:
+                    "linear-gradient(to bottom, transparent 0, black 46px, black calc(100% - 46px), transparent 100%)",
+                }
+              : canScrollUp
+                ? {
+                    WebkitMaskImage:
+                      "linear-gradient(to bottom, transparent 0, black 46px, black 100%)",
+                    maskImage:
+                      "linear-gradient(to bottom, transparent 0, black 46px, black 100%)",
+                  }
+                : canScrollDown
+                  ? {
+                      WebkitMaskImage:
+                        "linear-gradient(to bottom, black 0, black calc(100% - 46px), transparent 100%)",
+                      maskImage:
+                        "linear-gradient(to bottom, black 0, black calc(100% - 46px), transparent 100%)",
+                    }
+                  : undefined
+          }
+        >
+          {attempts.map((attempt) => (
+            <RecentAttemptRow key={attempt.id} attempt={attempt} />
+          ))}
+        </div>
+      </div>
+
+      {canScroll ? (
+        <HistoryArrow
+          direction="down"
+          disabled={!canScrollDown}
+          onClick={() => scrollHistory("down")}
+        />
+      ) : null}
     </div>
   );
 }
@@ -329,7 +467,7 @@ export function TrainingDashboard({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:items-stretch">
-        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7">
+        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7 xl:h-[650px]">
           <div className="flex items-end justify-between gap-4">
             <div>
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
@@ -340,7 +478,7 @@ export function TrainingDashboard({
               </h2>
             </div>
             <Link
-              className="shrink-0 text-xs font-medium text-app-text-soft transition hover:text-app-text"
+              className="shrink-0 rounded-full border border-app-border-strong bg-app-surface-active px-3.5 py-2 text-xs font-medium text-app-text-soft shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_18px_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/10 transition hover:bg-app-page-soft hover:text-app-text hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_22px_rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
               href="/history"
             >
               Ver historial completo
@@ -348,13 +486,10 @@ export function TrainingDashboard({
           </div>
 
           {summary.recentAttempts.length > 0 ? (
-            <div className="mt-6 flex-1 overflow-hidden">
-              <div className="space-y-3 xl:max-h-[540px] xl:overflow-y-auto xl:pr-2">
-                {summary.recentAttempts.map((attempt) => (
-                  <RecentAttemptRow key={attempt.id} attempt={attempt} />
-                ))}
-              </div>
-            </div>
+            <RecentHistoryScroller
+              attempts={summary.recentAttempts}
+              key={summary.recentAttempts[0]?.id ?? "recent-history"}
+            />
           ) : (
             <div className="mt-6 rounded-2xl border border-dashed border-app-border-strong bg-app-page-soft/55 p-5">
               <p className="text-sm leading-6 text-app-text-soft">
@@ -364,7 +499,7 @@ export function TrainingDashboard({
           )}
         </article>
 
-        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7">
+        <article className="flex h-full flex-col rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7 xl:h-[650px]">
           <div className="flex items-end justify-between gap-4">
             <div>
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
@@ -375,7 +510,7 @@ export function TrainingDashboard({
               </h2>
             </div>
             <Link
-              className="shrink-0 text-xs font-medium text-app-text-soft transition hover:text-app-text"
+              className="shrink-0 rounded-full border border-app-border-strong bg-app-surface-active px-3.5 py-2 text-xs font-medium text-app-text-soft shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_18px_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/10 transition hover:bg-app-page-soft hover:text-app-text hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_22px_rgba(255,255,255,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
               href="/skills"
             >
               Ver habilidades

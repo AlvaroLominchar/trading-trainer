@@ -45,6 +45,7 @@ export type TrainingHistoryManagementAction = {
 
 export type TrainingHistoryAttempt = {
   id: string;
+  exerciseId: string;
   exerciseTitle: string;
   timeframe: string;
   decision: TrainingDecision;
@@ -264,6 +265,8 @@ export function parseTrainingHistoryAttempt(
 
   if (
     typeof value.id !== "string" ||
+    typeof value.exercise_id !== "string" ||
+    !value.exercise_id.trim() ||
     typeof value.exercise_title !== "string" ||
     typeof value.timeframe !== "string" ||
     typeof value.decision !== "string" ||
@@ -323,6 +326,7 @@ export function parseTrainingHistoryAttempt(
 
   return {
     id: value.id,
+    exerciseId: value.exercise_id,
     exerciseTitle: value.exercise_title,
     timeframe: value.timeframe,
     decision: value.decision as TrainingDecision,

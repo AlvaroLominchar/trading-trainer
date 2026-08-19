@@ -1,4 +1,4 @@
-import { DEMO_EXERCISES } from "./exercises/demo-exercises";
+import { resolveTrainingExercise } from "./exercises/synthetic-catalog";
 import {
   applyManagedStop,
   createManagementPosition,
@@ -16,6 +16,7 @@ import {
 import {
   TRAINING_DECISIONS,
   type DirectionalDecision,
+  type Exercise,
   type ManagementActionScore,
   type TradePlan,
   type TrainingDecision,
@@ -127,10 +128,9 @@ function assertTradePlan(plan: TradePlan) {
 }
 
 function getExercise(submission: TrainingAttemptSubmission) {
-  const exercise = DEMO_EXERCISES.find(
-    (item) =>
-      item.id === submission.exerciseId &&
-      item.version === submission.exerciseVersion,
+  const exercise = resolveTrainingExercise(
+    submission.exerciseId,
+    submission.exerciseVersion,
   );
 
   if (!exercise) {
@@ -168,7 +168,7 @@ function assertSubmissionShape(submission: TrainingAttemptSubmission) {
 }
 
 function evaluateDirectionalManagement(
-  exercise: (typeof DEMO_EXERCISES)[number],
+  exercise: Exercise,
   decision: DirectionalDecision,
   tradePlan: TradePlan,
   submittedActions: readonly TrainingManagementActionSubmission[],

@@ -18,6 +18,15 @@ export type TrainingSkill = (typeof TRAINING_SKILLS)[number];
 
 export type ExerciseTimeframe = "5m" | "15m" | "1h";
 
+export const SYNTHETIC_EXERCISE_ARCHETYPES = [
+  "trend-continuation",
+  "range-midpoint",
+  "false-breakout",
+] as const;
+
+export type SyntheticExerciseArchetype =
+  (typeof SYNTHETIC_EXERCISE_ARCHETYPES)[number];
+
 export type Candle = {
   timestamp: number;
   open: number;
@@ -43,9 +52,19 @@ export type ExerciseRubric = {
   decisions: Record<TrainingDecision, DecisionRubric>;
 };
 
+export type SyntheticExerciseGeneration = {
+  generator: "procedural";
+  generatorVersion: number;
+  archetype: SyntheticExerciseArchetype;
+  seed: number;
+  variant?: number;
+  setupDirection?: DirectionalDecision | "neutral";
+};
+
 export type ExerciseSource = {
   kind: "synthetic";
   label: string;
+  generation?: SyntheticExerciseGeneration;
 };
 
 export type PriceZone = {

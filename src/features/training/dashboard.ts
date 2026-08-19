@@ -11,7 +11,7 @@ import {
 import type { TrainingDecision, TrainingSkill } from "./types";
 
 export const DASHBOARD_ATTEMPT_WINDOW = 24;
-export const DASHBOARD_RECENT_ATTEMPTS_LIMIT = 3;
+export const DASHBOARD_RECENT_ATTEMPTS_LIMIT = 12;
 export const DASHBOARD_SKILL_PREVIEW_LIMIT = 5;
 
 export type DashboardStageMetric = {
@@ -41,11 +41,13 @@ export type DashboardRecentAttempt = {
   title: string;
   timeframe: string;
   createdAt: string;
+  decision: TrainingDecision;
   decisionLabel: string;
   outcomeLabel: string;
   ideaScore: number;
   planScore: number | null;
   managementScore: number | null;
+  hasPerformanceSeal: boolean;
 };
 
 export type TrainingDashboardSummary = {
@@ -151,10 +153,24 @@ function fallbackSkillProfile(
   return buildSkillProfile(
     attempts.map((attempt) => ({
       id: attempt.id,
-      exerciseId: attempt.exerciseTitle,
+      exerciseId: attempt.exerciseId,
       createdAt: attempt.createdAt,
       skillScores: attempt.skillScores,
     })),
+  );
+}
+
+function qualifiesForPerformanceSeal(attempt: TrainingHistoryAttempt) {
+  if (attempt.decision === "no_trade") {
+    return attempt.ideaScore > 90;
+  }
+
+  return (
+    attempt.ideaScore > 70 &&
+    attempt.planScore !== null &&
+    attempt.planScore > 70 &&
+    attempt.managementScore !== null &&
+    attempt.managementScore > 70
   );
 }
 
@@ -166,11 +182,13 @@ function buildRecentAttempts(
     title: attempt.exerciseTitle,
     timeframe: attempt.timeframe,
     createdAt: attempt.createdAt,
+    decision: attempt.decision,
     decisionLabel: getDecisionLabel(attempt.decision),
     outcomeLabel: getOutcomeLabel(attempt.outcome),
     ideaScore: attempt.ideaScore,
     planScore: attempt.planScore,
     managementScore: attempt.managementScore,
+    hasPerformanceSeal: qualifiesForPerformanceSeal(attempt),
   }));
 }
 
@@ -208,7 +226,7 @@ export function buildTrainingDashboard(
     totalAttempts,
     attemptsAnalyzed: orderedAttempts.length,
     uniqueExercises: new Set(
-      orderedAttempts.map((attempt) => attempt.exerciseTitle),
+      orderedAttempts.map((attempt) => attempt.exerciseId),
     ).size,
     topRatedCount,
     topRatedShare: toShare(topRatedCount, orderedAttempts.length),

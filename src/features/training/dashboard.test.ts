@@ -12,6 +12,7 @@ function createAttempt(
 ): TrainingHistoryAttempt {
   return {
     id: "attempt-1",
+    exerciseId: "trend-continuation-001",
     exerciseTitle: "Escenario base",
     timeframe: "15m",
     decision: "long",
@@ -111,6 +112,23 @@ describe("buildTrainingDashboard", () => {
     ]);
   });
 
+  it("cuenta variantes procedurales con el mismo título como escenarios distintos", () => {
+    const summary = buildTrainingDashboard([
+      createAttempt({
+        id: "a-1",
+        exerciseId: "syn-range-midpoint-g1-s101",
+        exerciseTitle: "Rango sin ventaja clara",
+      }),
+      createAttempt({
+        id: "a-2",
+        exerciseId: "syn-range-midpoint-g1-s202",
+        exerciseTitle: "Rango sin ventaja clara",
+      }),
+    ]);
+
+    expect(summary.uniqueExercises).toBe(2);
+  });
+
   it("builds decision shares", () => {
     const summary = buildTrainingDashboard([
       createAttempt({ id: "a-1", decision: "long" }),
@@ -138,6 +156,7 @@ describe("buildTrainingDashboard", () => {
     const attempts = [
       createAttempt({
         id: "a-1",
+        exerciseId: "syn-trend-continuation-g1-s1",
         exerciseTitle: "Escenario 1",
         skillScores: [
           { skill: "context_reading", score: 88, weight: 1 },
@@ -146,6 +165,7 @@ describe("buildTrainingDashboard", () => {
       }),
       createAttempt({
         id: "a-2",
+        exerciseId: "syn-trend-continuation-g1-s2",
         exerciseTitle: "Escenario 2",
         skillScores: [
           { skill: "context_reading", score: 86, weight: 1 },
@@ -158,7 +178,7 @@ describe("buildTrainingDashboard", () => {
       skillProfile: buildSkillProfile(
         attempts.map((attempt) => ({
           id: attempt.id,
-          exerciseId: attempt.exerciseTitle,
+          exerciseId: attempt.exerciseId,
           createdAt: attempt.createdAt,
           skillScores: attempt.skillScores,
         })),
@@ -173,7 +193,9 @@ describe("buildTrainingDashboard", () => {
     );
   });
 
-  it("limits the number of recent attempts shown", () => {
+  it("keeps up to twelve recent attempts for the scrollable dashboard history", () => {
+    expect(DASHBOARD_RECENT_ATTEMPTS_LIMIT).toBe(12);
+
     const attempts = Array.from(
       { length: DASHBOARD_RECENT_ATTEMPTS_LIMIT + 2 },
       (_, index) =>
@@ -189,4 +211,46 @@ describe("buildTrainingDashboard", () => {
       DASHBOARD_RECENT_ATTEMPTS_LIMIT,
     );
   });
+  it("preserves the decision and marks standout recent attempts", () => {
+    const summary = buildTrainingDashboard([
+      createAttempt({
+        id: "great-long",
+        decision: "long",
+        ideaScore: 82,
+        planScore: 75,
+        managementScore: 71,
+      }),
+      createAttempt({
+        id: "borderline-short",
+        decision: "short",
+        ideaScore: 88,
+        planScore: 70,
+        managementScore: 92,
+      }),
+      createAttempt({
+        id: "great-no-trade",
+        decision: "no_trade",
+        tradePlan: null,
+        ideaScore: 91,
+        planScore: null,
+        managementScore: null,
+        planComponentScores: null,
+        managementActions: [],
+        outcome: "no_trade",
+      }),
+    ]);
+
+    const byId = new Map(summary.recentAttempts.map((attempt) => [attempt.id, attempt]));
+
+    expect(byId.get("great-long")).toEqual(
+      expect.objectContaining({ decision: "long", hasPerformanceSeal: true }),
+    );
+    expect(byId.get("borderline-short")).toEqual(
+      expect.objectContaining({ decision: "short", hasPerformanceSeal: false }),
+    );
+    expect(byId.get("great-no-trade")).toEqual(
+      expect.objectContaining({ decision: "no_trade", hasPerformanceSeal: true }),
+    );
+  });
+
 });

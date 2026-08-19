@@ -1,175 +1,447 @@
 # PROJECT_HANDOFF — trading-trainer
 
-> Documento técnico de traspaso para continuar el producto en chats nuevos.
+> Documento técnico de continuidad del producto.
 >
-> **Regla de autoridad:** Git y el `PROJECT_SNAPSHOT_<commit>.txt` cuyo nombre contenga el commit más reciente son la fuente de verdad del código. Este documento resume decisiones, arquitectura, validaciones y siguiente bloque, pero no debe utilizarse para inferir el hash actual si existe un snapshot más reciente.
+> **Regla de autoridad:** Git y el `PROJECT_SNAPSHOT_<commit>.txt` cuyo nombre contenga el commit más reciente son la fuente de verdad del código. Este documento resume arquitectura y decisiones, pero un snapshot más reciente siempre prevalece.
 >
 > **Contexto estable de negocio:** `PRODUCT_CONTEXT.md`.
 >
-> **Origen del producto:** clon aislado de `plantilla-saas` desde el commit `ba997e2`.
-> **Rama de trabajo prevista:** `main`.
-> **Nombre técnico provisional:** `trading-trainer`.
+> **Último commit confirmado antes del Bloque 12:** `60e73bf` — `Add polished training dashboard`.
+>
+> **Estado de este documento:** actualizado para acompañar el Bloque 12 — motor de catálogo sintético procedural. Hasta que el usuario valide y haga commit del bloque, comprobar `git status` y el snapshot más reciente antes de asumir que el Bloque 12 está cerrado.
 
 ---
 
-## 1. Objetivo del proyecto
+## 1. Producto
 
-`trading-trainer` es un producto SaaS de entrenamiento de toma de decisiones para traders.
+`trading-trainer` es una plataforma SaaS de entrenamiento de toma de decisiones para traders.
 
-No pretende ser:
-
-- Un proveedor de señales.
-- Un sistema de predicción.
-- Un broker.
-- Una plataforma de copy trading.
-- Un servicio de asesoramiento financiero personalizado.
-- Un simulador abierto de mercado en su primera versión.
-
-El concepto central es un **gimnasio de decisiones** mediante escenarios históricos o controlados:
+Bucle principal:
 
 ```text
 Analizar → decidir → gestionar → revelar → aprender → repetir
 ```
 
-La experiencia debe ser visual, fluida, medible y adecuada para sesiones cortas.
+No es un proveedor de señales, predictor de mercado, broker, copy trading ni asesoramiento financiero personalizado.
 
-La definición estable del negocio, límites regulatorios, principios de producto, roadmap conceptual y estrategia de datos viven en:
+Principios que no deben romperse:
 
-```text
-PRODUCT_CONTEXT.md
-```
+- Proceso antes que resultado aislado.
+- `No operar` es una decisión válida y puede ser la mejor.
+- Scoring determinista, explicable y versionado.
+- La confianza no altera la puntuación individual del ejercicio; sirve para analítica/calibración futura.
+- El futuro revelado no cambia retroactivamente la calidad de la decisión inicial.
+- La IA puede explicar o resumir; no debe convertirse en la fuente de verdad del scoring.
+- Primera fase con escenarios históricos o sintéticos, sin recomendaciones sobre mercado actual.
+- La calidad visual se cierra en cada bloque, no al final.
 
 ---
 
-## 2. Origen técnico
+## 2. Repositorio y stack
 
-El producto se creó clonando la plantilla SaaS reutilizable:
-
-```text
-Repositorio original: AlvaroLominchar/plantilla-saas
-Commit base heredado: ba997e2
-```
-
-La copia local de desarrollo se creó en:
+Repositorio local previsto:
 
 ```text
 C:\dev\trading-trainer
 ```
 
-Tras clonar, se eliminó el remoto de la plantilla para impedir cualquier `push` accidental al repositorio original.
-
-La historia heredada contiene la etiqueta:
+Repositorio GitHub:
 
 ```text
-v1.0.0
+https://github.com/AlvaroLominchar/trading-trainer.git
 ```
 
-en el commit:
+Base heredada:
 
 ```text
-dd9c4f3
+ba997e2
 ```
 
-Esa etiqueta pertenece a la plantilla original y no representa una versión del nuevo producto.
+Stack conservado:
 
-Para conocer el commit, remoto y estado exactos actuales, revisar siempre:
-
-```powershell
-git status; git log --oneline -5; git remote -v
-```
-
-y el snapshot más reciente disponible.
-
----
-
-## 3. Arquitectura heredada que debe conservarse
-
-Salvo razón técnica explícita, el producto conserva:
-
-- Next.js `16.2.12`.
+- Next.js `16.2.12` App Router.
 - React `19.2.4`.
 - TypeScript.
-- App Router.
-- Carpeta `src`.
 - Tailwind CSS 4.
-- Supabase Auth.
-- Sesiones SSR.
-- Google OAuth.
-- PostgreSQL.
-- Row Level Security.
+- Supabase Auth/Postgres/RLS.
+- Google OAuth con sesiones SSR.
 - Perfiles.
-- Planes `free`, `plus` y `premium`.
-- Protección genérica por plan.
-- Stripe Checkout.
-- Customer Portal.
-- Webhooks firmados e idempotentes.
-- Sincronización del ciclo de suscripción.
-- Recuperación de pagos fallidos.
-- Cancelación y resuscripción.
+- Planes técnicos `free`, `plus`, `premium`.
+- Stripe Checkout/Portal/webhooks/lifecycle heredado.
 - Onboarding.
 - Eliminación segura de cuenta.
 - Temas semánticos.
-- Páginas legales provisionales.
-- Cabeceras de seguridad.
-- `robots.txt`.
-- `sitemap.xml`.
 - Vitest.
-- Vercel como despliegue previsto.
+- Vercel previsto.
 
-No reconstruir infraestructura ya resuelta por rutina.
-
----
-
-## 4. Estado técnico heredado
-
-### Rutas públicas
-
-```text
-/
-/login
-/legal
-/privacy
-/terms
-/cookies
-/robots.txt
-/sitemap.xml
-/account-deleted
-/auth/auth-code-error
-/auth/callback
-/auth/signout
-/api/stripe/webhook
-```
-
-### Rutas privadas
-
-```text
-/dashboard
-/settings
-```
-
-### Datos
-
-Tablas heredadas principales:
-
-```text
-public.profiles
-public.subscriptions
-public.stripe_webhook_events
-```
-
-### Última migración heredada
-
-```text
-supabase/migrations/20260805213000_add_profile_onboarding.sql
-```
-
-No modificar migraciones heredadas ya aplicadas. Cualquier cambio futuro debe entrar mediante una migración nueva.
+No reconstruir estas piezas sin una razón técnica explícita.
 
 ---
 
-## 5. Facturación heredada
+## 3. Historial funcional confirmado hasta `60e73bf`
 
-Planes válidos:
+Commits principales del producto:
+
+```text
+f507478 Initialize trading trainer product
+699b6b6 Add trading trainer app shell
+c666e5c Add training exercise core
+83b335f Make training session playable
+d26e3f4 Add trade plan scoring core
+03dce89 Add interactive trade planning experience
+2d0c017 Add trade management core
+49d142b Add progressive trade management experience
+08b3d79 Persist training attempts
+d0e16a4 Add training history
+8c61770 Add skill profile
+60e73bf Add polished training dashboard
+```
+
+El snapshot `PROJECT_SNAPSHOT_60e73bf.txt` o uno posterior gobierna el estado exacto.
+
+---
+
+## 4. Entrenamiento existente
+
+La ruta privada `/train` ofrece un ejercicio completo:
+
+1. gráfico de velas con futuro oculto;
+2. decisión `long | short | no_trade`;
+3. confianza 50–100%;
+4. para decisiones direccionales, plan con entrada, stop y objetivo;
+5. revelado progresivo vela a vela;
+6. checkpoints de gestión;
+7. acciones `hold | close | move_stop`;
+8. resultado con Lectura / Plan / Gestión separadas;
+9. explicación determinista;
+10. persistencia segura del intento.
+
+La media visual mostrada en el resultado no es una cuarta puntuación oficial y no se persiste.
+
+### Skills actuales
+
+```text
+context_reading
+trend_reading
+range_reading
+discipline
+false_breakout
+```
+
+### Familias base actuales
+
+```text
+trend-continuation
+range-midpoint
+false-breakout
+```
+
+Antes del Bloque 12 existían como tres ejercicios sintéticos controlados en `src/features/training/exercises/demo-exercises.ts`.
+
+---
+
+## 5. Scoring
+
+### Lectura / idea
+
+- Determinista.
+- `85+`: strong.
+- `60–84`: acceptable.
+- `<60`: weak.
+- El scoring se calcula por skill y pesos del ejercicio.
+- La confianza no altera el score.
+
+### Plan
+
+Dimensión independiente de Lectura.
+
+Componentes:
+
+```text
+entry: 25%
+invalidation/stop: 35%
+target: 20%
+reward/risk: 20%
+```
+
+Las zonas se degradan de forma continua fuera del rango óptimo.
+
+Geometría:
+
+```text
+long: stop < entry < target
+short: target < entry < stop
+```
+
+### Gestión
+
+- Checkpoints relevantes, no cada vela.
+- Acciones: mantener, cerrar, proteger stop.
+- El stop solo puede reducir riesgo.
+- El scoring usa únicamente la información visible en el checkpoint.
+- Si una vela toca stop y target sin orden intrabar conocido, el resultado puede ser `ambiguous`.
+- `no_trade` no tiene Plan ni Gestión.
+
+---
+
+## 6. Persistencia y seguridad
+
+Migración específica aplicada:
+
+```text
+supabase/migrations/20260819103000_create_training_attempts.sql
+```
+
+Tabla:
+
+```text
+public.training_attempts
+```
+
+Arquitectura:
+
+- El navegador envía decisiones brutas.
+- El servidor reconstruye el ejercicio y recalcula Lectura / Plan / Gestión.
+- El usuario autenticado no inserta directamente por RLS.
+- La inserción se hace server-side con cliente administrativo.
+- Idempotencia mediante UUID de intento y fingerprint SHA-256.
+- Un UUID repetido con payload idéntico se acepta.
+- Un UUID repetido con contenido distinto se rechaza.
+- Eliminación de cuenta elimina intentos por cascada.
+
+Se persisten, entre otros:
+
+- exercise id/version/title/timeframe/source;
+- decisión y confianza;
+- plan;
+- scoring de Lectura y skills;
+- scoring de Plan;
+- scoring y acciones de Gestión;
+- outcome y exit price.
+
+Nunca confiar en el score calculado en el navegador.
+
+---
+
+## 7. Historial, habilidades y dashboard
+
+### `/history`
+
+- Hasta 30 intentos recientes.
+- Más reciente primero.
+- Decisión y outcome separados.
+- Lectura / Plan / Gestión independientes.
+- Detalle expandible de skills, plan y gestión.
+- Sin puntuación global oficial.
+
+### `/skills`
+
+Perfil derivado de intentos persistidos, sin tabla materializada `user_skill_scores`.
+
+- Hasta 60 intentos recientes.
+- Promedio simple por observación de skill.
+- El `weight` interno del ejercicio no se reutiliza para ponderar permanentemente el perfil.
+- Señales de fortaleza/refuerzo requieren evidencia mínima.
+- No existe un “trader score” global.
+
+### `/dashboard`
+
+Dashboard real y aprobado visualmente en `60e73bf`:
+
+- Intentos.
+- Escenarios.
+- Mejor opción elegida.
+- Rendimiento por fase con Lectura / Plan / Gestión.
+- Mejor fase con tratamiento plateado destacado.
+- Distribución de decisiones con donut.
+- Historial reciente y acceso al historial completo; el Bloque 12 V2 corrige el límite para mostrar hasta 12 intentos con scroll real.
+- Habilidades y acceso al perfil completo.
+- Sin tarjetas redundantes de “última sesión” o “foco actual”.
+- Sin una nota global de trader.
+
+---
+
+## 8. Bloque 12 — motor de catálogo sintético procedural
+
+Objetivo: dejar de depender de crear ejercicios manualmente uno a uno y preparar una fuente amplia de entrenamiento sintético reproducible sin convertir la rúbrica en una caja negra.
+
+**Estado:** implementación candidata V2, pendiente de validación visual/funcional del usuario y de commit. El primer intento del Bloque 12 (`g1`) transformaba templates existentes y produjo formas demasiado parecidas; no debe considerarse la arquitectura objetivo.
+
+### Motor V2
+
+Archivo principal:
+
+```text
+src/features/training/exercises/synthetic-catalog.ts
+```
+
+Identidad reproducible:
+
+```text
+arquetipo + seed + versión de generador → Exercise
+```
+
+ID actual:
+
+```text
+syn-<archetype>-g2-s<seed>
+```
+
+Ejemplo:
+
+```text
+syn-range-midpoint-g2-s4242
+```
+
+El servidor puede reconstruir exactamente un escenario desde su ID y versión. Los IDs `g1` ya persistidos durante la prueba inicial siguen siendo reconstruibles por compatibilidad, pero las nuevas selecciones usan `g2`.
+
+### Cómo genera V2
+
+V2 ya no escala ni desplaza la serie de velas de los tres templates. Genera una estructura nueva desde parámetros latentes del arquetipo y después sintetiza OHLCV alrededor de esa estructura.
+
+Variación actual:
+
+- 6 estilos estructurales por familia;
+- long/short espejados cuando la familia lo permite;
+- timeframes `5m`, `15m` y `1h`;
+- número y duración variables de impulsos, retrocesos y rotaciones;
+- profundidad variable de pullbacks y extremos;
+- rangos estables, contractivos, expansivos, con deriva o más irregulares;
+- falsas rupturas de ambos lados con fallos de una o varias fases;
+- ruido de microestructura determinista dentro de cada tramo;
+- clustering simple de volatilidad, shocks ocasionales, wicks y volumen;
+- precio base y timestamps variables.
+
+Las tres familias pedagógicas siguen siendo:
+
+```text
+trend-continuation
+range-midpoint
+false-breakout
+```
+
+Esto aporta profundidad dentro de cada familia, pero todavía no sustituye ampliar el número de conceptos pedagógicos.
+
+### Rúbricas y seguridad pedagógica
+
+- La verdad del ejercicio nace del arquetipo y de sus parámetros latentes, no del futuro generado después.
+- En tendencia, la dirección preferida puede ser long o short según la seed.
+- En rango medio, `no_trade` sigue siendo la lectura fuerte.
+- En falsa ruptura, `no_trade` sigue siendo la opción más robusta y la reversión es defendible pero inferior.
+- Las zonas de Entrada/Stop/Objetivo se derivan de la estructura visible y ATR reciente.
+- Gestión conserva checkpoints deterministas en `+2`, `+5`, `+8`.
+- Título, prompt y `source.label` son neutrales y no revelan al usuario qué familia se está evaluando.
+
+### QA automático del generador
+
+`validateSyntheticExercise()` comprueba como mínimo:
+
+- OHLC válido;
+- precios positivos;
+- timestamps crecientes;
+- ventana visible/revelado válidos;
+- recorrido suficiente frente a volatilidad;
+- ausencia de velas desproporcionadas respecto al ATR del escenario.
+
+Los tests de V2 añaden además una regresión de **diversidad geométrica normalizada** para impedir volver accidentalmente al comportamiento de `g1`, donde varias seeds eran esencialmente la misma forma trasladada o escalada.
+
+Antes de empaquetar esta iteración se ha realizado también una comprobación estadística interna sobre decenas de miles de seeds y una revisión visual de muestras de las tres familias. Esto no sustituye la validación del usuario ni una futura calibración contra datos históricos reales.
+
+### Selector
+
+El selector procedural:
+
+- evita repetir exactamente IDs recientes;
+- evita repetir la misma familia de forma inmediata cuando hay alternativas;
+- favorece familias menos vistas dentro de la ventana reciente;
+- descarta cualquier seed que no supere el validador;
+- todavía **no** es entrenamiento adaptativo por habilidad;
+- no usa IA;
+- no necesita una migración nueva.
+
+La ruta `/train` consulta IDs recientes mediante Supabase/RLS y el servidor vuelve a reconstruir el ejercicio al persistir para recalcular la evaluación oficial.
+
+### Dashboard relacionado
+
+La card **Historial reciente** del dashboard pasa a conservar hasta 12 intentos del resumen y utiliza scroll vertical dentro de una altura acotada. El acceso **Ver historial completo** sigue llevando a `/history`.
+
+### Alcance real
+
+El espacio de seeds es muy grande, pero no se debe vender como “millones de ejercicios validados”. V2 resuelve variación reproducible dentro de tres familias. La siguiente ampliación debe añadir más arquetipos y, cuando dispongamos de un dataset histórico con derechos resueltos, usarlo también para calibrar propiedades estadísticas del generador.
+
+---
+
+## 9. Compatibilidad con datos reales futuros
+
+No crear un segundo sistema de entrenamiento para datos históricos.
+
+Dirección arquitectónica:
+
+```text
+Exercise
+├── synthetic procedural
+├── synthetic curated
+└── historical licensed (futuro)
+
+        ↓
+
+mismo TrainingSession
+mismo scoring
+misma persistencia
+mismo historial
+mismo perfil de habilidades
+```
+
+Los datos históricos reales deberán utilizarse solo cuando los derechos/licencias permitan el uso comercial y la visualización necesaria.
+
+Sin tiempo real ni recomendaciones actuales en esta fase.
+
+---
+
+## 10. IA futura
+
+La IA puede evaluarse posteriormente para:
+
+- explicar el scoring determinista en lenguaje natural;
+- resumir sesiones;
+- detectar patrones de errores históricos;
+- adaptar el nivel de detalle de las explicaciones;
+- ayudar internamente al etiquetado/QA de escenarios.
+
+No debe:
+
+- inventar la respuesta correcta;
+- sustituir la rúbrica determinista;
+- generar señales actuales;
+- prometer rentabilidad.
+
+No asignar todavía estas capacidades a Free/Plus/Premium.
+
+---
+
+## 11. Supabase
+
+Existe un proyecto Supabase independiente del template.
+
+Configuración ya realizada durante el desarrollo:
+
+- Auth.
+- Google OAuth.
+- RLS.
+- perfiles y suscripciones heredados;
+- `training_attempts` específico del producto.
+
+CLI inicializado y vinculado.
+
+No modificar migraciones ya aplicadas. Crear una migración nueva para cualquier cambio futuro de esquema.
+
+Nunca solicitar ni mostrar secretos o `.env.local`.
+
+---
+
+## 12. Facturación
+
+Infraestructura heredada:
 
 ```text
 free
@@ -177,262 +449,117 @@ plus
 premium
 ```
 
-Fuente de verdad:
+Stripe continúa como infraestructura técnica heredada y debe mantenerse en Sandbox/Test hasta decisión de lanzamiento.
 
-```text
-src/config/plans.ts
-```
+Los precios y capacidades concretas de planes no están definidos para el negocio. No inventarlos.
 
-Los importes actuales heredados son técnicos y provisionales:
+Hipótesis futuras, no compromisos de plan:
 
-```text
-Plus: 4,99 €/mes
-Premium: 19,99 €/mes
-```
-
-No representan todavía la estrategia comercial de `trading-trainer`.
-
-No asignar capacidades definitivas a Free, Plus o Premium hasta validar qué funciones aportan valor.
-
-Stripe debe permanecer en Sandbox/Test hasta que exista una decisión explícita de lanzamiento real.
+- catálogo ampliado;
+- datos históricos reales;
+- feedback/analítica con IA;
+- entrenamiento adaptativo;
+- modos de presión;
+- retos, ligas o packs.
 
 ---
 
-## 6. Principios técnicos específicos del nuevo producto
-
-### 6.1 Calidad visual continua
-
-No se acumularán grandes bloques funcionales feos para diseñarlos al final.
-
-Cada bloque visible debe cerrar con:
-
-- Responsive real.
-- Jerarquía visual clara.
-- Estados de carga cuando proceda.
-- Estados vacíos cuando proceda.
-- Feedback inmediato.
-- Interacciones suaves.
-- Buen aspecto en capturas y grabaciones.
-- Compatibilidad con los tokens semánticos de temas existentes.
-
-### 6.2 Desarrollo independiente de servicios externos
-
-Priorizar primero todo lo que pueda construirse y validarse sin:
-
-- Usuarios externos.
-- Datos comerciales.
-- APIs de brokers.
-- Tiempo real.
-- Stripe Live.
-- Premios.
-- Marketplace.
-- Integraciones sociales.
-
-### 6.3 Núcleo determinista
-
-El sistema de ejercicios y puntuación debe ser explicable y testeable.
-
-La IA podrá ayudar posteriormente a:
-
-- Explicar resultados.
-- Resumir sesiones.
-- Detectar patrones.
-- Ayudar al etiquetado.
-
-No debe ser la fuente de verdad del ejercicio.
-
-### 6.4 No mezclar producto con señales
-
-La primera versión debe trabajar con escenarios históricos o sintéticos y evitar recomendaciones actuales de compra o venta.
-
----
-
-## 7. Estrategia inicial de datos
-
-No utilizar Google Finance como fuente del producto.
-
-Fases previstas:
+## 13. Rutas privadas principales
 
 ```text
-Desarrollo interno
-→ datos sintéticos o controlados
-
-Alpha
-→ conjunto pequeño con derechos resueltos
-
-Beta pública
-→ proveedor/licencia con permiso comercial y visualización externa
-
-Expansión
-→ nuevos mercados solo cuando el uso justifique el coste
+/dashboard
+/train
+/history
+/skills
+/settings
 ```
 
-Mercado inicial previsto:
+Navegación desktop actual:
 
 ```text
-BTC spot
-ETH spot
+Dashboard
+Entrenar
+Historial
+Habilidades
+Configuración
 ```
 
-Sin tiempo real y sin derivados en la primera fase.
+En móvil se usan etiquetas compactas equivalentes.
 
 ---
 
-## 8. Primer flujo objetivo del entrenamiento
+## 14. Calidad visual
 
-La primera experiencia completa deberá evolucionar hacia:
+Decisiones visuales ya validadas:
 
-1. Mostrar un escenario.
-2. Ocultar el futuro.
-3. Permitir analizar.
-4. Decidir:
-   - Largo.
-   - Corto.
-   - No operar.
-5. Declarar confianza.
-6. Revelar el movimiento posterior.
-7. Evaluar.
-8. Explicar.
-9. Guardar el intento.
-10. Actualizar habilidades.
+- UI oscura limpia con tokens semánticos.
+- Verde/rojo reservados para semántica de trading, no decoración arbitraria.
+- Resultado con gráfico dominante y evaluación compacta.
+- Dashboard sencillo de entender para un usuario de trading intermedio-básico.
+- Mejor fase destacada en plata metálica con destellos discretos.
+- Historial reciente y habilidades como bloques principales del dashboard.
 
-Más adelante:
-
-- Entrada.
-- Invalidación.
-- Stop.
-- Objetivo.
-- Riesgo.
-- Gestión vela a vela.
-- Modos de presión.
-- Entrenamiento adaptativo.
+No introducir decoración gratuita ni jerarquías de texto excesivas.
 
 ---
 
-## 9. Modelo de datos previsto
+## 15. Validación obligatoria
 
-Todavía no se ha creado ninguna tabla nueva del negocio.
+Después de aplicar un bloque importante:
 
-Entidades candidatas:
-
-```text
-exercises
-exercise_candles
-exercise_skill_tags
-exercise_rubrics
-exercise_attempts
-attempt_decisions
-user_skill_scores
-daily_challenges
+```powershell
+npm test; npm run lint; npm run build; git diff --check; git status
 ```
 
-La taxonomía y las relaciones deben diseñarse antes de escribir la migración.
+Solo después de que el usuario confirme que funciona:
 
-No crear estas tablas por intuición.
-
----
-
-## 10. Dashboard heredado
-
-El dashboard actual contiene únicamente placeholders de la plantilla:
-
-- Métricas de demostración.
-- Proyectos ficticios.
-- Gráfico ficticio.
-- Botón `Nuevo proyecto`.
-
-Deben eliminarse progresivamente y reemplazarse por datos reales del producto.
-
-No interpretar esos elementos como funcionalidad existente.
-
----
-
-## 11. Onboarding heredado
-
-Actualmente existe un onboarding genérico:
-
-- Usuario nuevo con onboarding pendiente.
-- Tarjeta en dashboard.
-- RPC autenticada.
-- Persistencia en `onboarding_completed_at`.
-
-Debe conservarse la infraestructura y sustituirse el contenido cuando exista el primer flujo real de entrenamiento.
-
----
-
-## 12. Legal heredado
-
-Rutas:
-
-```text
-/legal
-/privacy
-/terms
-/cookies
+```powershell
+git add ...; git commit -m "Mensaje descriptivo"; git push origin main; git status
 ```
 
-Siguen siendo documentos provisionales con placeholders.
-
-Antes de una beta pública o lanzamiento comercial deberán adaptarse al producto, incluyendo como mínimo:
-
-- Naturaleza educativa/simulada.
-- Limitaciones.
-- Datos tratados.
-- Datos de mercado.
-- Proveedores.
-- Suscripciones.
-- Cancelaciones.
-- Uso aceptable.
-- Riesgos.
-- Jurisdicción.
-- Política de cookies.
-
-Además deberá revisarse específicamente el perímetro regulatorio financiero antes de lanzar funcionalidades que puedan aproximarse a recomendaciones o asesoramiento.
+No hacer commit/push antes de validación visual y técnica del usuario.
 
 ---
 
-## 13. Documentos de continuidad
+## 16. Siguiente evolución recomendada después del Bloque 12
 
-### Contexto estable
+No saltar inmediatamente a “IA adaptativa” con solo tres familias.
 
-```text
-PRODUCT_CONTEXT.md
-```
+Orden recomendado:
 
-Contiene:
+1. validar visual y pedagógicamente múltiples seeds de las tres familias;
+2. añadir más arquetipos estructurales;
+3. incorporar un validador/QA automático de escenarios;
+4. definir dificultad de forma explícita;
+5. después conectar selección por habilidades y errores recientes;
+6. más adelante explorar reto diario;
+7. investigar datos históricos con derechos de uso;
+8. evaluar una capa de explicación con IA sobre scoring determinista.
 
-- Visión.
-- Usuario.
-- Propuesta de valor.
-- Principios.
-- Límites regulatorios.
-- Estrategia de datos.
-- IA.
-- Diseño.
-- Modelo de negocio.
-- Roadmap conceptual.
+Posibles nuevas familias:
 
-### Estado técnico
-
-```text
-PROJECT_HANDOFF.md
-```
-
-Este archivo.
-
-### Fuente de verdad del código
-
-```text
-PROJECT_SNAPSHOT_<commit>.txt
-```
-
-El snapshot debe regenerarse al cerrar hitos importantes y antes de migrar a otro chat cuando sea necesario.
+- pullback en tendencia;
+- ruptura válida;
+- compresión;
+- expansión de volatilidad;
+- extremo de rango;
+- agotamiento;
+- contexto ambiguo/no trade.
 
 ---
 
-## 14. Orden de autoridad
+## 17. Documentos y orden de autoridad
 
-Cuando existan discrepancias:
+Al continuar en otro chat:
+
+1. instrucciones del proyecto;
+2. `PRODUCT_CONTEXT.md`;
+3. `PROJECT_HANDOFF.md`;
+4. snapshot más reciente;
+5. `README.md`;
+6. archivos afectados.
+
+En caso de conflicto:
 
 ```text
 Git / snapshot más reciente
@@ -443,187 +570,30 @@ PRODUCT_CONTEXT.md
         ↓
 README.md
         ↓
-memoria de conversaciones
-```
-
-Git y snapshot gobiernan lo que existe.
-
-`PRODUCT_CONTEXT.md` gobierna la intención del negocio.
-
----
-
-## 15. Forma de trabajo obligatoria
-
-- Responder siempre en español.
-- Entorno del usuario: Windows, PowerShell y VS Code.
-- Todos los comandos de terminal deben ir completos en una sola línea.
-- Antes de tocar código:
-  - revisar `PROJECT_HANDOFF.md`;
-  - revisar el snapshot más reciente;
-  - revisar `PRODUCT_CONTEXT.md`;
-  - revisar `README.md`;
-  - revisar los archivos concretos afectados.
-- Avanzar en bloques pequeños y verificables.
-- Para cambios importantes, entregar archivos completos o ZIP.
-- Indicar rutas exactas.
-- No pedir ni mostrar secretos.
-- No mostrar `.env.local`.
-- No cambiar de stack innecesariamente.
-- No debilitar RLS.
-- No exponer clientes administrativos al navegador.
-- No inventar funciones definitivas de planes.
-- No asumir que una prueba funciona hasta validarla.
-
-Después de cada bloque importante:
-
-```powershell
-npm test; npm run lint; npm run build; git diff --check; git status
-```
-
-Solo después de validación del usuario:
-
-```powershell
-git add ...; git commit -m "Mensaje descriptivo"; git push; git status
+memoria de conversación
 ```
 
 ---
 
-## 16. Validación fundacional confirmada
+## 18. Decisiones abiertas
 
-En el repositorio independiente se ha confirmado:
+Siguen abiertas:
 
-```text
-Vitest: 34/34 pruebas correctas
-Test files: 2/2
-Lint: correcto
-Build: correcto
-Rutas generadas: 18
-git diff --check: correcto
-```
-
-Durante la instalación inicial `npm audit --omit=dev` detectó una vulnerabilidad alta transitiva:
-
-```text
-nanoid 3.3.16
-```
-
-arrastrada por:
-
-```text
-postcss 8.5.25
-```
-
-El rango permitido por PostCSS era:
-
-```text
-^3.3.16
-```
-
-Se actualizó únicamente la dependencia transitiva a:
-
-```text
-nanoid 3.3.18
-```
-
-sin modificar `package.json`.
-
-Validación posterior confirmada:
-
-```text
-npm audit --omit=dev: 0 vulnerabilidades
-Vitest: 34/34
-Lint: correcto
-Build: correcto
-git diff --check: correcto
-```
-
-Existe además un aviso de npm sobre un script de instalación no aprobado para:
-
-```text
-unrs-resolver@1.12.2
-```
-
-No se ha aprobado ni modificado porque no existe actualmente una necesidad funcional que lo justifique.
-
----
-
-## 17. Producto implementado hasta ahora
-
-A este nivel del proyecto:
-
-```text
-Contexto permanente de producto: preparado
-Handoff técnico específico: preparado
-README específico del producto: preparado
-Dependencias instaladas: sí
-Vulnerabilidad nanoid inicial: corregida
-Motor de entrenamiento: no implementado
-Tablas de entrenamiento: no creadas
-Datos de mercado: no integrados
-Supabase específico nuevo: no creado
-Stripe específico nuevo: no creado
-Vercel específico nuevo: no creado
-Marca definitiva: no decidida
-```
-
-Para conocer los hashes, remoto y working tree exactos, revisar Git y el snapshot más reciente.
-
----
-
-## 18. Próximos bloques recomendados
-
-### Bloque inmediato
-
-Cerrar la fundación del nuevo repositorio:
-
-- Guardar `PRODUCT_CONTEXT.md`.
-- Guardar este `PROJECT_HANDOFF.md`.
-- Guardar el `README.md` específico.
-- Guardar la actualización transitiva de `nanoid`.
-- Crear repositorio GitHub privado propio.
-- Conectar `origin`.
-- Commit y push tras validación.
-
-### Primer bloque visible
-
-Después:
-
-- Identidad técnica provisional.
-- Eliminar lenguaje visible de “Base SaaS”.
-- Diseñar navegación real del producto.
-- Añadir entrada clara a `Entrenar`.
-- Crear una primera ruta/pantalla de entrenamiento cuidada visualmente.
-- Mantener intacta la infraestructura de autenticación, facturación y cuenta.
-
-### Bloque posterior
-
-- Definir formalmente `Exercise`.
-- Definir formato de velas.
-- Crear dataset interno.
-- Integrar gráfico.
-- Implementar primera decisión `long | short | no_trade`.
-
----
-
-## 19. Cambio de chat
-
-Cuando el usuario pida migrar a otro chat:
-
-1. Actualizar este handoff si el estado funcional cambió de forma importante.
-2. Generar snapshot del commit actual.
-3. Entregar un prompt corto que ordene revisar:
-   - instrucciones;
-   - `PRODUCT_CONTEXT.md`;
-   - `PROJECT_HANDOFF.md`;
-   - snapshot más reciente;
-   - `README.md`.
-4. Indicar:
-   - commit actual;
-   - último bloque terminado;
-   - pruebas superadas;
-   - próximo bloque.
-
-No es necesario preparar un prompt de migración en cada iteración.
+- marca y dominio;
+- idioma principal definitivo;
+- precios;
+- capacidades de Free/Plus/Premium;
+- proveedor/licencia de datos históricos;
+- universo final de mercados;
+- número y taxonomía final de arquetipos;
+- dificultad procedural;
+- QA de corpus sintético;
+- fórmula de entrenamiento adaptativo;
+- uso exacto de IA;
+- reto diario;
+- ligas/competición;
+- marketplace/creadores;
+- estrategia de adquisición.
 
 ---
 

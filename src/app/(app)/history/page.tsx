@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 
 const HISTORY_SELECT = [
   "id",
+  "exercise_id",
   "exercise_title",
   "timeframe",
   "decision",
