@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { saveTrainingAttempt } from "@/app/(app)/train/actions";
 import { MarketPreview } from "@/components/training/market-preview";
+import {
+  type TrainingManagementActionSubmission,
+} from "@/features/training/attempt-persistence";
 import { DEMO_EXERCISES } from "@/features/training/exercises/demo-exercises";
 import {
   applyManagedStop,
@@ -86,6 +90,8 @@ type ManagementOutcome = {
   detail?: string;
   exitPrice: number | null;
 };
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 function isDirectionalDecision(
   decision: TrainingDecision | null,
@@ -299,13 +305,20 @@ export function TrainingSession() {
   const [managementActions, setManagementActions] = useState<
     readonly ManagementActionScore[]
   >([]);
+  const [managementActionInputs, setManagementActionInputs] = useState<
+    readonly TrainingManagementActionSubmission[]
+  >([]);
   const [managementScore, setManagementScore] =
     useState<ManagementSessionScore | null>(null);
   const [managementOutcome, setManagementOutcome] =
     useState<ManagementOutcome | null>(null);
   const [candidateStop, setCandidateStop] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const timerRef = useRef<number | null>(null);
   const resultSectionRef = useRef<HTMLElement | null>(null);
+  const attemptIdRef = useRef<string | null>(null);
+  const savingAttemptIdRef = useRef<string | null>(null);
+  const savedAttemptIdRef = useRef<string | null>(null);
 
   const exercise = DEMO_EXERCISES[exerciseIndex];
   const directionalDecision = isDirectionalDecision(decision) ? decision : null;
@@ -338,13 +351,71 @@ export function TrainingSession() {
     });
   }, [phase]);
 
+  const persistAttempt = useCallback(
+    (finalManagementActions: readonly TrainingManagementActionSubmission[]) => {
+      const attemptId = attemptIdRef.current;
+
+      if (!attemptId || !decision) {
+        return;
+      }
+
+      if (
+        savedAttemptIdRef.current === attemptId ||
+        savingAttemptIdRef.current === attemptId
+      ) {
+        return;
+      }
+
+      savingAttemptIdRef.current = attemptId;
+      setSaveStatus("saving");
+
+      void saveTrainingAttempt({
+        attemptId,
+        exerciseId: exercise.id,
+        exerciseVersion: exercise.version,
+        decision,
+        confidence,
+        tradePlan: decision === "no_trade" ? null : tradePlan,
+        managementActions: finalManagementActions,
+      })
+        .then((response) => {
+          if (attemptIdRef.current !== attemptId) {
+            return;
+          }
+
+          savingAttemptIdRef.current = null;
+
+          if (response.status === "saved") {
+            savedAttemptIdRef.current = attemptId;
+            setSaveStatus("saved");
+            return;
+          }
+
+          setSaveStatus("error");
+        })
+        .catch((error) => {
+          console.error("Training attempt save request failed:", error);
+
+          if (attemptIdRef.current !== attemptId) {
+            return;
+          }
+
+          savingAttemptIdRef.current = null;
+          setSaveStatus("error");
+        });
+    },
+    [confidence, decision, exercise.id, exercise.version, tradePlan],
+  );
+
   const finishManagement = useCallback(
     (
       finalActions: readonly ManagementActionScore[],
+      finalActionInputs: readonly TrainingManagementActionSubmission[],
       outcome: ManagementOutcome,
     ) => {
       clearTimer();
       setManagementActions(finalActions);
+      setManagementActionInputs(finalActionInputs);
       setManagementScore(
         finalActions.length > 0 ? scoreManagementSession(finalActions) : null,
       );
@@ -352,8 +423,9 @@ export function TrainingSession() {
       setCandidateStop(null);
       setRevealedCount(exercise.revealCount);
       setPhase("result");
+      persistAttempt(finalActionInputs);
     },
-    [clearTimer, exercise.revealCount],
+    [clearTimer, exercise.revealCount, persistAttempt],
   );
 
   useEffect(() => {
@@ -368,7 +440,7 @@ export function TrainingSession() {
     if (revealedCount >= exercise.revealCount) {
       clearTimer();
       timerRef.current = window.setTimeout(() => {
-        finishManagement(managementActions, {
+        finishManagement(managementActions, managementActionInputs, {
           label: "Fin del escenario",
           exitPrice: null,
         });
@@ -391,7 +463,7 @@ export function TrainingSession() {
       const checkpoint = managementCheckpoints[managementCheckpointIndex];
 
       if (evaluation.status !== "open") {
-        finishManagement(managementActions, {
+        finishManagement(managementActions, managementActionInputs, {
           label: getOutcomeLabel(evaluation.status),
           detail: checkpoint
             ? `La operación se cerró automáticamente antes del checkpoint ${managementCheckpointIndex + 1}/${managementCheckpoints.length}.`
@@ -407,7 +479,7 @@ export function TrainingSession() {
       }
 
       if (nextOffset >= exercise.revealCount) {
-        finishManagement(managementActions, {
+        finishManagement(managementActions, managementActionInputs, {
           label: "Fin del escenario · posición abierta",
           exitPrice: null,
         });
@@ -420,6 +492,7 @@ export function TrainingSession() {
     directionalDecision,
     exercise,
     finishManagement,
+    managementActionInputs,
     managementActions,
     managementCheckpointIndex,
     managementCheckpoints,
@@ -448,6 +521,18 @@ export function TrainingSession() {
       return;
     }
 
+    if (
+      isDirectionalDecision(decision) &&
+      (!tradePlan || !isTradePlanGeometryValid(decision, tradePlan))
+    ) {
+      return;
+    }
+
+    attemptIdRef.current = window.crypto.randomUUID();
+    savingAttemptIdRef.current = null;
+    savedAttemptIdRef.current = null;
+    setSaveStatus("idle");
+
     const nextResult = scoreExerciseAttempt(exercise, {
       decision,
       confidence,
@@ -455,6 +540,7 @@ export function TrainingSession() {
     setResult(nextResult);
     setRevealedCount(0);
     setManagementActions([]);
+    setManagementActionInputs([]);
     setManagementScore(null);
     setManagementOutcome(null);
     setManagementCheckpointIndex(0);
@@ -464,15 +550,18 @@ export function TrainingSession() {
       setTradePlanResult(null);
       setRevealedCount(exercise.revealCount);
       setPhase("result");
+      persistAttempt([]);
       return;
     }
 
-    if (!tradePlan || !isTradePlanGeometryValid(decision, tradePlan)) {
+    const confirmedTradePlan = tradePlan;
+
+    if (!confirmedTradePlan) {
       return;
     }
 
-    setTradePlanResult(scoreTradePlan(exercise, decision, tradePlan));
-    setManagementPosition(createManagementPosition(tradePlan));
+    setTradePlanResult(scoreTradePlan(exercise, decision, confirmedTradePlan));
+    setManagementPosition(createManagementPosition(confirmedTradePlan));
     setPhase("advancing");
   }
 
@@ -486,6 +575,10 @@ export function TrainingSession() {
       return;
     }
 
+    const actionInput: TrainingManagementActionSubmission = {
+      checkpointOffset: currentCheckpoint.afterRevealOffset,
+      action,
+    };
     const actionScore = scoreManagementAction(
       exercise,
       directionalDecision,
@@ -494,6 +587,7 @@ export function TrainingSession() {
       { action },
     );
     const nextActions = [...managementActions, actionScore];
+    const nextActionInputs = [...managementActionInputs, actionInput];
 
     if (action === "close") {
       const currentCandle = getManagementCandle(
@@ -501,7 +595,7 @@ export function TrainingSession() {
         currentCheckpoint.afterRevealOffset,
       );
 
-      finishManagement(nextActions, {
+      finishManagement(nextActions, nextActionInputs, {
         label: "Cierre manual",
         exitPrice: currentCandle.close,
       });
@@ -509,6 +603,7 @@ export function TrainingSession() {
     }
 
     setManagementActions(nextActions);
+    setManagementActionInputs(nextActionInputs);
     setManagementCheckpointIndex((index) => index + 1);
     setPhase("advancing");
   }
@@ -592,6 +687,14 @@ export function TrainingSession() {
 
     setManagementPosition(nextPosition);
     setManagementActions((actions) => [...actions, actionScore]);
+    setManagementActionInputs((actions) => [
+      ...actions,
+      {
+        checkpointOffset: currentCheckpoint.afterRevealOffset,
+        action: "move_stop",
+        stop: candidateStop,
+      },
+    ]);
     setManagementCheckpointIndex((index) => index + 1);
     setCandidateStop(null);
     setPhase("advancing");
@@ -604,6 +707,14 @@ export function TrainingSession() {
 
     setCandidateStop(null);
     setPhase("checkpoint");
+  }
+
+  function handleRetrySave() {
+    if (saveStatus !== "error") {
+      return;
+    }
+
+    persistAttempt(managementActionInputs);
   }
 
   function handleNextExercise() {
@@ -620,9 +731,14 @@ export function TrainingSession() {
     setManagementPosition(null);
     setManagementCheckpointIndex(0);
     setManagementActions([]);
+    setManagementActionInputs([]);
     setManagementScore(null);
     setManagementOutcome(null);
     setCandidateStop(null);
+    setSaveStatus("idle");
+    attemptIdRef.current = null;
+    savingAttemptIdRef.current = null;
+    savedAttemptIdRef.current = null;
     setPhase("deciding");
 
     window.setTimeout(() => {
@@ -859,14 +975,29 @@ export function TrainingSession() {
                   </div>
                 ) : null}
 
-                <div className="mt-5 flex justify-center">
+                <div className="mt-5 flex flex-col items-center gap-2.5">
                   <button
-                    className="min-h-11 rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text transition hover:bg-app-accent-hover"
+                    className="min-h-11 rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text transition hover:bg-app-accent-hover disabled:cursor-wait disabled:opacity-60"
+                    disabled={saveStatus === "saving"}
                     onClick={handleNextExercise}
                     type="button"
                   >
                     Siguiente escenario
                   </button>
+
+                  <div className="min-h-5 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-app-text-muted">
+                    {saveStatus === "saving" ? "Guardando intento…" : null}
+                    {saveStatus === "saved" ? "Intento guardado" : null}
+                    {saveStatus === "error" ? (
+                      <button
+                        className="underline decoration-app-border-strong underline-offset-4 transition hover:text-app-text-soft"
+                        onClick={handleRetrySave}
+                        type="button"
+                      >
+                        No se pudo guardar · Reintentar
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
@@ -901,12 +1032,12 @@ export function TrainingSession() {
                   </div>
 
                   <div className="mt-6 flex flex-1 flex-col justify-center gap-6 border-t border-app-border pt-6">
-                    <div className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-2xl border border-white bg-white px-5 py-5 text-black shadow-[0_10px_34px_rgba(0,0,0,0.16)] sm:px-6">
+                    <div className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-2xl border border-slate-400/80 bg-[linear-gradient(145deg,#d9dde2_0%,#aeb6c0_48%,#e3e6e9_100%)] px-5 py-5 text-slate-950 shadow-[0_12px_36px_rgba(0,0,0,0.22)] sm:px-6">
                       {evaluationSummaryScore !== null ? (
-                        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-black/15 bg-black/[0.035] px-3 py-2 text-black">
+                        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-slate-900/20 bg-slate-950/[0.07] px-3 py-2 text-slate-950">
                           <MedalSealIcon />
                           <div className="text-right">
-                            <span className="block font-mono text-[7px] uppercase tracking-[0.16em] text-black/50">
+                            <span className="block font-mono text-[7px] uppercase tracking-[0.16em] text-slate-900/55">
                               {getEvaluationSummaryLabel(evaluationSummaryScore)}
                             </span>
                             <span className="mt-0.5 block font-mono text-sm font-semibold tracking-[-0.03em]">
@@ -917,10 +1048,10 @@ export function TrainingSession() {
                       ) : null}
 
                       <div className="pr-32 sm:pr-40">
-                        <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-black/45">
+                        <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-slate-900/50">
                           Evaluación
                         </span>
-                        <h3 className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-black">
+                        <h3 className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-950">
                           Diagnóstico
                         </h3>
                       </div>
@@ -928,16 +1059,16 @@ export function TrainingSession() {
                       <div className="mt-5 grid gap-2.5">
                         {evaluationSealPoints.map((point) => (
                           <div
-                            className="flex items-center gap-3 rounded-xl border border-black/10 bg-black/[0.025] px-4 py-3"
+                            className="flex items-center gap-3 rounded-xl border border-slate-900/15 bg-slate-950/[0.055] px-4 py-3"
                             key={point}
                           >
-                            <span className="size-1.5 shrink-0 rounded-full bg-black/70" />
-                            <span className="text-sm font-medium text-black/75">{point}</span>
+                            <span className="size-1.5 shrink-0 rounded-full bg-slate-950/75" />
+                            <span className="text-sm font-medium text-slate-950/80">{point}</span>
                           </div>
                         ))}
                       </div>
 
-                      <p className="mt-4 text-center text-[9px] leading-4 text-black/40">
+                      <p className="mt-4 text-center text-[9px] leading-4 text-slate-900/50">
                         Síntesis visual de las dimensiones evaluadas en esta sesión.
                       </p>
                     </div>
