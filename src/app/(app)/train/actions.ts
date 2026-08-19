@@ -1,3 +1,4 @@
+
 "use server";
 
 import { createHash } from "node:crypto";
@@ -68,6 +69,8 @@ export async function saveTrainingAttempt(
       management_rubric_version: attempt.managementRubricVersion,
       decision: attempt.decision,
       confidence: attempt.confidence,
+      wait_count: attempt.waitCount,
+      timing_score: attempt.timingScore,
       trade_plan: attempt.tradePlan,
       idea_score: attempt.ideaScore,
       idea_rating: attempt.ideaRating,

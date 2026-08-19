@@ -1,3 +1,4 @@
+
 # PROJECT_HANDOFF — trading-trainer
 
 > Documento técnico de continuidad del producto.
@@ -6,9 +7,9 @@
 >
 > **Contexto estable de negocio:** `PRODUCT_CONTEXT.md`.
 >
-> **Último commit confirmado:** `91280a9` — `Add procedural synthetic training engine`.
+> **Último commit confirmado:** `d1b136d` — `Expand procedural training catalog`.
 >
-> **Estado de este documento:** actualizado para acompañar el cierre candidato del Bloque 13. El usuario ya ha validado 154 tests, lint y build sobre la versión anterior del bloque; quedan por validar el pulido final de feedback y el refuerzo de variedad del selector. Hasta hacer commit, `91280a9` sigue siendo el último estado confirmado.
+> **Estado de este documento:** Bloque 13 cerrado y consolidado. La última validación confirmada antes del commit fue 159/159 tests, lint y build correctos. Este documento acompaña ahora el candidato del Bloque 14 — `Esperar` + Timing real—; hasta validación y commit, `d1b136d` sigue siendo la fuente de verdad confirmada.
 
 ---
 
@@ -80,7 +81,7 @@ No reconstruir estas piezas sin una razón técnica explícita.
 
 ---
 
-## 3. Historial funcional confirmado hasta `91280a9`
+## 3. Historial funcional confirmado hasta `d1b136d`
 
 Commits principales:
 
@@ -98,11 +99,12 @@ d0e16a4 Add training history
 8c61770 Add skill profile
 60e73bf Add polished training dashboard
 91280a9 Add procedural synthetic training engine
+d1b136d Expand procedural training catalog
 ```
 
-El snapshot `PROJECT_SNAPSHOT_91280a9.txt` o uno posterior gobierna el estado exacto.
+El snapshot `PROJECT_SNAPSHOT_d1b136d.txt` o uno posterior gobierna el estado exacto.
 
-El Bloque 12 quedó validado por el usuario y consolidado en `91280a9` con motor procedural V2, seeds reproducibles, selector, reconstrucción server-side, compatibilidad legacy `g1`, QA geométrico y los últimos pulidos de gráfico/dashboard.
+El Bloque 12 quedó validado y consolidado en `91280a9`. El Bloque 13 quedó validado y consolidado en `d1b136d` con 8 familias procedurales, 10 habilidades, radar de skills, explicaciones de Lectura/Plan/Gestión, selector anti-repetición estructural y los pulidos finales de dashboard/perfil. La validación final del bloque fue 159/159 tests, lint y build correctos.
 
 ---
 
@@ -111,16 +113,17 @@ El Bloque 12 quedó validado por el usuario y consolidado en `91280a9` con motor
 La ruta privada `/train` ofrece:
 
 1. gráfico de velas con futuro oculto;
-2. decisión `long | short | no_trade`;
-3. confianza 50–100%;
-4. para decisiones direccionales, entrada, stop y objetivo;
-5. revelado progresivo;
-6. checkpoints de gestión;
-7. acciones `hold | close | move_stop`;
-8. Lectura / Plan / Gestión separadas;
-9. explicación determinista;
-10. persistencia segura;
-11. selección procedural del siguiente escenario.
+2. decisión terminal `long | short | no_trade`;
+3. en el Bloque 14 candidato, acción temporal **Esperar 1 vela** antes de la decisión terminal, sin añadir `wait` a `TrainingDecision`;
+4. confianza 50–100%;
+5. para decisiones direccionales, entrada, stop y objetivo;
+6. revelado progresivo;
+7. checkpoints de gestión;
+8. acciones `hold | close | move_stop`;
+9. Lectura / Plan / Gestión separadas;
+10. explicación determinista;
+11. persistencia segura;
+12. selección procedural del siguiente escenario.
 
 La línea que separa información disponible y futuro revelado permanece visible durante la corrección.
 
@@ -172,6 +175,14 @@ Migración específica aplicada:
 ```text
 supabase/migrations/20260819103000_create_training_attempts.sql
 ```
+
+Migración candidata del Bloque 14, todavía pendiente de `supabase db push` en el entorno del usuario:
+
+```text
+supabase/migrations/20260819215000_add_training_wait_timing.sql
+```
+
+Añade `wait_count` y `timing_score` sin editar la migración aplicada.
 
 Tabla:
 
@@ -269,7 +280,7 @@ El selector evita repetir IDs, evita repetir familia inmediata cuando hay altern
 
 ## 9. Bloque 13 — ampliación pedagógica
 
-**Estado:** implementación candidata pendiente de validación del usuario y commit.
+**Estado:** cerrado, validado y consolidado en `d1b136d`.
 
 Objetivo: ampliar la cobertura conceptual sin crear ejercicios manualmente uno a uno ni duplicar el sistema.
 
@@ -312,9 +323,9 @@ retest_reading
 entry_timing
 ```
 
-La vista de perfil trabaja con **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`. `entry_timing` (Timing) se deriva del componente oficial `entry` de `plan_component_scores` cuando existe una operación direccional, por lo que aporta evidencia real sin inventar una nueva nota ni duplicar persistencia.
+La vista de perfil trabaja con **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`. En el estado confirmado `d1b136d`, `entry_timing` (Timing) se deriva del componente oficial `entry` de `plan_component_scores` cuando existe una operación direccional.
 
-No hay nueva tabla ni migración Supabase en este ajuste.
+El radar quedó validado con nombres de skill a **11px** y puntuaciones a **9px**. No hubo migración Supabase en Bloque 13.
 
 ### Presentación del perfil
 
@@ -365,18 +376,39 @@ La sección **Por qué** del resultado deja de mostrar tres razones genéricas s
 
 Esto no crea una cuarta nota, no cambia scoring y no usa IA. Solo hace legible el origen de las tres notas existentes.
 
-### Decisión futura: `Esperar` no equivale a `No operar`
+---
 
-Se reserva una evolución del flujo para distinguir:
+## 10. Bloque 14 candidato — `Esperar` + Timing real
 
-- `no_trade`: el usuario descarta la oportunidad con la información actual y termina la decisión inicial;
-- `wait`: el usuario decide no entrar todavía, pide más confirmación, se revelan nuevas velas y vuelve a decidir después.
+Distinción de producto:
 
-Esta segunda opción es especialmente relevante para **Timing** y Disciplina. No se implementa en este ajuste visual porque requiere ampliar la máquina de estados de la sesión y persistir una secuencia de decisiones, probablemente mediante una migración nueva en vez de modificar la migración aplicada de `training_attempts`.
+- `no_trade`: decisión terminal; el usuario descarta la oportunidad con la información disponible en el punto final elegido;
+- `wait`: acción temporal; revela exactamente una vela y devuelve al usuario a Largo / Corto / No operar con el nuevo punto de decisión.
+
+Arquitectura elegida:
+
+- **no se añade `wait` a `TrainingDecision`**; la decisión persistida sigue siendo `long | short | no_trade`;
+- máximo 3 esperas por escenario procedural V2;
+- siempre quedan al menos 8 velas posteriores para evaluación/gestión;
+- el stage se reconstruye determinísticamente como `Exercise` con `decisionIndex` desplazado, `revealCount` reducido, nueva rúbrica de Lectura y nuevas zonas de Plan basadas solo en la información visible;
+- el servidor vuelve a reconstruir el mismo stage a partir del ejercicio original + `wait_count`;
+- el navegador nunca envía `timing_score`.
+
+Timing candidato:
+
+- cada espera recibe un score determinista utilizando únicamente la jerarquía Largo/Corto/No operar disponible antes de revelar la siguiente vela;
+- esperar puntúa alto cuando todavía no operar es la mejor o una opción robusta;
+- esperar pierde puntos cuando ya existe una ventaja direccional clara;
+- si la decisión final es direccional, la nota oficial de Entrada se añade como otra observación temporal;
+- `timing_score` es la media simple de esas observaciones;
+- `no_trade` tras haber esperado puede aportar Timing; `no_trade` sin espera no inventa una observación;
+- intentos legacy mantienen como fallback la nota de Entrada.
+
+El resultado continúa mostrando solo Lectura / Plan / Gestión. Timing permanece en el perfil de habilidades y no se convierte en una cuarta puntuación oficial.
 
 ---
 
-## 10. Datos reales futuros
+## 11. Datos reales futuros
 
 No crear un segundo sistema para históricos:
 
@@ -399,7 +431,7 @@ Los históricos reales solo deben incorporarse con derechos/licencias adecuados.
 
 ---
 
-## 11. IA futura
+## 12. IA futura
 
 Puede explorarse para explicar scoring, resumir sesiones, detectar patrones y ayudar al QA.
 
@@ -409,7 +441,7 @@ No asignar todavía capacidades a Free/Plus/Premium.
 
 ---
 
-## 12. Supabase y facturación
+## 13. Supabase y facturación
 
 Existe proyecto Supabase independiente con Auth, Google OAuth, RLS, perfiles, suscripciones y `training_attempts`.
 
@@ -429,7 +461,7 @@ Nunca solicitar ni mostrar secretos o `.env.local`.
 
 ---
 
-## 13. Rutas privadas
+## 14. Rutas privadas
 
 ```text
 /dashboard
@@ -441,7 +473,7 @@ Nunca solicitar ni mostrar secretos o `.env.local`.
 
 ---
 
-## 14. Calidad visual
+## 15. Calidad visual
 
 Decisiones validadas:
 
@@ -455,7 +487,7 @@ Decisiones validadas:
 
 ---
 
-## 15. Validación obligatoria
+## 16. Validación obligatoria
 
 ```powershell
 npm test; npm run lint; npm run build; git diff --check; git status
@@ -469,23 +501,21 @@ git add ...; git commit -m "Mensaje descriptivo"; git push origin main; git stat
 
 ---
 
-## 16. Siguiente evolución recomendada
+## 17. Siguiente evolución recomendada
 
-Si Bloque 13 queda validado:
+Si el Bloque 14 candidato queda validado:
 
-1. validar las 8 familias y la nueva presentación de 10 habilidades;
-2. diseñar la acción explícita **Esperar** como distinta de `no_trade`: revelar una o varias velas y permitir decidir después;
-3. enriquecer Timing con esa secuencia de espera, además de la calidad de Entrada que ya puede medir hoy;
-4. dificultad procedural explícita;
-5. selección por skills débiles, errores recientes y exposición;
-6. entrenamiento adaptativo real;
-7. reto diario;
-8. investigación de datos históricos licenciables;
-9. feedback IA sobre scoring determinista.
+1. consolidar `Esperar` + Timing real y su migración;
+2. dificultad procedural explícita;
+3. selección por skills débiles, errores recientes, dificultad y exposición;
+4. entrenamiento adaptativo real;
+5. reto diario;
+6. investigación de datos históricos licenciables;
+7. feedback IA sobre scoring determinista.
 
 ---
 
-## 17. Orden de autoridad
+## 18. Orden de autoridad
 
 ```text
 Git / snapshot más reciente
@@ -501,7 +531,7 @@ memoria de conversación
 
 ---
 
-## 18. Decisiones abiertas
+## 19. Decisiones abiertas
 
 - marca y dominio;
 - idioma principal definitivo;

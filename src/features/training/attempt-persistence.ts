@@ -1,3 +1,8 @@
+
+import {
+  calculateAttemptTimingScore,
+  createDecisionStageExercise,
+} from "./decision-flow";
 import { resolveTrainingExercise } from "./exercises/synthetic-catalog";
 import {
   applyManagedStop,
@@ -58,6 +63,7 @@ export type TrainingAttemptSubmission = {
   exerciseVersion: number;
   decision: TrainingDecision;
   confidence: number;
+  waitCount: number;
   tradePlan: TradePlan | null;
   managementActions: readonly TrainingManagementActionSubmission[];
 };
@@ -77,6 +83,8 @@ export type EvaluatedTrainingAttempt = {
   managementRubricVersion: number | null;
   decision: TrainingDecision;
   confidence: number;
+  waitCount: number;
+  timingScore: number | null;
   tradePlan: TradePlan | null;
   ideaScore: number;
   ideaRating: string;
@@ -161,6 +169,10 @@ function assertSubmissionShape(submission: TrainingAttemptSubmission) {
   }
 
   assertConfidence(submission.confidence);
+
+  if (!Number.isInteger(submission.waitCount) || submission.waitCount < 0) {
+    throw new Error("La espera enviada no es válida.");
+  }
 
   if (!Array.isArray(submission.managementActions)) {
     throw new Error("Las decisiones de gestión no son válidas.");
@@ -287,7 +299,11 @@ export function evaluateTrainingAttemptSubmission(
   submission: TrainingAttemptSubmission,
 ): EvaluatedTrainingAttempt {
   assertSubmissionShape(submission);
-  const exercise = getExercise(submission);
+  const baseExercise = getExercise(submission);
+  const exercise = createDecisionStageExercise(
+    baseExercise,
+    submission.waitCount,
+  );
   const ideaResult = scoreExerciseAttempt(exercise, {
     decision: submission.decision,
     confidence: submission.confidence,
@@ -313,6 +329,13 @@ export function evaluateTrainingAttemptSubmission(
       managementRubricVersion: null,
       decision: submission.decision,
       confidence: submission.confidence,
+      waitCount: submission.waitCount,
+      timingScore: calculateAttemptTimingScore({
+        exercise: baseExercise,
+        waitCount: submission.waitCount,
+        finalDecision: submission.decision,
+        entryScore: null,
+      }),
       tradePlan: null,
       ideaScore: ideaResult.overallScore,
       ideaRating: ideaResult.rating,
@@ -354,6 +377,15 @@ export function evaluateTrainingAttemptSubmission(
     submission.tradePlan,
     submission.managementActions,
   );
+  const entryScore =
+    planResult.componentScores.find((component) => component.component === "entry")
+      ?.score ?? null;
+  const timingScore = calculateAttemptTimingScore({
+    exercise: baseExercise,
+    waitCount: submission.waitCount,
+    finalDecision: submission.decision,
+    entryScore,
+  });
 
   return {
     attemptId: submission.attemptId,
@@ -367,6 +399,8 @@ export function evaluateTrainingAttemptSubmission(
       exercise.managementRubrics[submission.decision].version,
     decision: submission.decision,
     confidence: submission.confidence,
+    waitCount: submission.waitCount,
+    timingScore,
     tradePlan: planResult.plan,
     ideaScore: ideaResult.overallScore,
     ideaRating: ideaResult.rating,

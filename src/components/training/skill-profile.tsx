@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 import { getSkillLabel } from "@/features/training/history";
@@ -31,7 +32,7 @@ const SKILL_DESCRIPTIONS: Record<TrainingSkill, string> = {
   retest_reading:
     "Interpretar el regreso a un nivel roto y comprobar si ahora funciona desde el lado nuevo.",
   entry_timing:
-    "Elegir un punto de entrada con mejor momento y ubicación, evitando entrar demasiado pronto o perseguir el precio.",
+    "Saber cuándo todavía conviene esperar y, cuando sí operas, elegir un punto de entrada con buen momento y ubicación.",
 };
 
 function ScoreBar({ score }: { score: number }) {
@@ -488,7 +489,7 @@ export function TrainingSkillProfile({
               </div>
               <div className="grid grid-cols-[84px_1fr] gap-3 py-2.5">
                 <span className="text-[10px] font-medium text-app-text">Timing</span>
-                <span className="text-[10px] leading-5 text-app-text-muted">Por ahora usa la nota de Entrada del Plan.</span>
+                <span className="text-[10px] leading-5 text-app-text-muted">Combina tus decisiones de esperar con la calidad de Entrada cuando finalmente operas.</span>
               </div>
             </div>
           </article>

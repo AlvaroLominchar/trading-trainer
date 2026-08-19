@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -21,6 +22,7 @@ const HISTORY_SELECT = [
   "timeframe",
   "decision",
   "confidence",
+  "wait_count",
   "trade_plan",
   "idea_score",
   "idea_rating",

@@ -1,3 +1,4 @@
+
 # Trading Trainer
 
 Nombre técnico provisional de una plataforma SaaS para entrenar toma de decisiones de trading mediante escenarios sintéticos o históricos controlados.
@@ -19,7 +20,7 @@ El objetivo no es reproducir un terminal completo, sino convertir aprendizaje pa
 Último commit confirmado:
 
 ```text
-91280a9 Add procedural synthetic training engine
+d1b136d Expand procedural training catalog
 ```
 
 Ya existen:
@@ -28,7 +29,7 @@ Ya existen:
 - navegación privada;
 - entrenamiento jugable;
 - gráfico con futuro oculto;
-- `largo | corto | no operar`;
+- `largo | corto | no operar`, con acción temporal `Esperar` en la implementación candidata del Bloque 14;
 - confianza;
 - Entrada/Stop/Objetivo;
 - Lectura, Plan y Gestión deterministas e independientes;
@@ -106,11 +107,11 @@ Nuevos conceptos:
 
 Cada familia nueva tiene seis variantes estructurales deterministas por seed.
 
-El Bloque 13 está pendiente de validación visual/técnica antes de consolidarse en Git.
+El Bloque 13 quedó validado y consolidado en `d1b136d`. La validación final confirmada fue 159/159 tests, lint y build correctos. En el radar de habilidades, los nombres quedaron en 11px y las puntuaciones en 9px.
 
 ## Skills
 
-Confirmadas hasta `91280a9`:
+Las 10 habilidades confirmadas desde `d1b136d` son:
 
 ```text
 context_reading
@@ -118,11 +119,6 @@ trend_reading
 range_reading
 discipline
 false_breakout
-```
-
-Añadidas en el Bloque 13:
-
-```text
 breakout_reading
 volatility_reading
 exhaustion_reading
@@ -130,7 +126,15 @@ retest_reading
 entry_timing
 ```
 
-La página `/skills` presenta **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`; **Timing** se deriva del score oficial del componente `Entrada` de `plan_component_scores` cuando el usuario realiza una operación direccional. No se crea una nota nueva ni una tabla adicional.
+El Bloque 13 añadió especialmente:
+
+- lectura de rupturas;
+- volatilidad;
+- agotamiento;
+- retests;
+- Timing.
+
+La página `/skills` presenta **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`. En el estado confirmado `d1b136d`, **Timing** usa el componente `Entrada` del Plan. El Bloque 14 candidato lo amplía de forma compatible: una espera deliberada también genera evidencia de Timing y, si después existe operación, se combina con la calidad de Entrada. Los intentos anteriores siguen usando Entrada como fallback.
 
 ### Presentación del perfil
 
@@ -158,16 +162,20 @@ Actualmente:
 
 Todavía no selecciona por debilidades del perfil. Eso llegará después de validar catálogo y dificultad.
 
-### Esperar frente a no operar
+### Esperar frente a no operar — Bloque 14 candidato
 
-El flujo actual conserva `No operar` como decisión terminal. Está prevista una acción distinta, **Esperar**, para escenarios donde el usuario quiera pedir confirmación, revelar algunas velas y decidir más tarde. Esa evolución encaja directamente con Timing y Disciplina, pero requiere ampliar el flujo y la persistencia de decisiones; no se mezcla con este ajuste de perfil.
+`No operar` sigue siendo una decisión terminal. **Esperar** es una acción temporal distinta: revela una vela y devuelve al usuario a Largo / Corto / No operar con el nuevo punto temporal.
+
+La implementación candidata limita la espera a un máximo de tres velas y conserva al menos ocho velas posteriores para evaluación/gestión. El servidor reconstruye el mismo punto de decisión a partir del escenario y `wait_count`; el navegador no envía el score de Timing.
+
+Timing se calcula de forma determinista: cada decisión de esperar aporta una observación basada únicamente en la información disponible en ese momento y, si la decisión final es direccional, se añade la nota de Entrada del Plan. El resultado sigue mostrando solo Lectura / Plan / Gestión; Timing vive en el perfil de habilidades, no como cuarta nota oficial.
 
 ## Flujo
 
 1. Escenario con futuro oculto.
-2. Largo / Corto / No operar.
+2. Largo / Corto / No operar o, cuando proceda, Esperar una vela y volver a decidir.
 3. Confianza.
-4. Entrada / Stop / Objetivo si hay dirección.
+4. Entrada / Stop / Objetivo si la decisión final es direccional.
 5. Revelado progresivo.
 6. Gestión en checkpoints.
 7. Lectura / Plan / Gestión separadas.
@@ -183,11 +191,14 @@ Tabla:
 public.training_attempts
 ```
 
-Migración:
+Migraciones del entrenamiento:
 
 ```text
 supabase/migrations/20260819103000_create_training_attempts.sql
+supabase/migrations/20260819215000_add_training_wait_timing.sql   # candidata Bloque 14
 ```
+
+La segunda migración añade `wait_count` y `timing_score` sin editar la migración ya aplicada.
 
 RLS activo, INSERT no expuesto al cliente, scoring recalculado server-side e idempotencia mediante UUID + fingerprint.
 
@@ -305,15 +316,14 @@ Git / snapshot
 
 ## Próximos pasos
 
-Tras validar Bloque 13:
+Tras validar el Bloque 14 candidato:
 
-1. validar las 8 familias y el perfil de 10 habilidades;
-2. diseñar la acción `Esperar` y enriquecer Timing con decisiones diferidas;
-3. dificultad procedural explícita;
-4. selección adaptativa por errores/habilidades;
-5. reto diario;
-6. datos históricos licenciables;
-7. feedback IA sobre scoring determinista.
+1. cerrar `Esperar` + Timing real y consolidar la migración;
+2. dificultad procedural explícita;
+3. selección adaptativa por errores/habilidades y exposición;
+4. reto diario;
+5. datos históricos licenciables;
+6. feedback IA sobre scoring determinista.
 
 ## Seguridad y legal
 

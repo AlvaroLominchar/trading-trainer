@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -33,6 +34,7 @@ const DASHBOARD_SELECT = [
   "timeframe",
   "decision",
   "confidence",
+  "wait_count",
   "trade_plan",
   "idea_score",
   "idea_rating",
@@ -42,6 +44,7 @@ const DASHBOARD_SELECT = [
   "idea_reasons",
   "plan_score",
   "plan_component_scores",
+  "timing_score",
   "management_score",
   "management_actions",
   "outcome",

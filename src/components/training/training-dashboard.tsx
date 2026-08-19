@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -195,7 +196,9 @@ function RecentAttemptRow({ attempt }: { attempt: DashboardRecentAttempt }) {
             {attempt.title}
           </h3>
           <p className="mt-1 text-[11px] text-app-text-muted">
-            {attempt.outcomeLabel} · {formatDateTime(attempt.createdAt)}
+            {attempt.outcomeLabel}
+            {attempt.waitCount > 0 ? ` · Esperó ${attempt.waitCount} ${attempt.waitCount === 1 ? "vela" : "velas"}` : ""}
+            {` · ${formatDateTime(attempt.createdAt)}`}
           </p>
         </div>
 

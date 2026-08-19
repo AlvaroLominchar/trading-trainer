@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 
 import { buildSkillProfile } from "./skill-profile";
@@ -18,6 +19,7 @@ function createAttempt(
     timeframe: "15m",
     decision: "long",
     confidence: 72,
+    waitCount: 0,
     tradePlan: {
       entry: 100,
       stop: 95,
@@ -182,7 +184,7 @@ describe("buildTrainingDashboard", () => {
           exerciseId: attempt.exerciseId,
           createdAt: attempt.createdAt,
           skillScores: attempt.skillScores,
-          entryTimingScore:
+          timingScore:
             attempt.planComponentScores?.find((item) => item.component === "entry")
               ?.score ?? null,
         })),
@@ -280,6 +282,14 @@ describe("buildTrainingDashboard", () => {
     expect(byId.get("great-no-trade")).toEqual(
       expect.objectContaining({ decision: "no_trade", hasPerformanceSeal: true }),
     );
+  });
+
+  it("preserves how many candles the user waited before the final decision", () => {
+    const summary = buildTrainingDashboard([
+      createAttempt({ id: "waited", waitCount: 2 }),
+    ]);
+
+    expect(summary.recentAttempts[0]?.waitCount).toBe(2);
   });
 
 });

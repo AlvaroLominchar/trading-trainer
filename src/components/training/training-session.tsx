@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -7,6 +8,10 @@ import { MarketPreview } from "@/components/training/market-preview";
 import {
   type TrainingManagementActionSubmission,
 } from "@/features/training/attempt-persistence";
+import {
+  createDecisionStageExercise,
+  getDecisionWaitLimit,
+} from "@/features/training/decision-flow";
 import {
   createSyntheticSelectionSeed,
   selectSyntheticExercise,
@@ -78,9 +83,9 @@ const PLAN_COMPONENT_LABELS: Record<TradePlanComponent, string> = {
 };
 
 const RATING_LABELS: Record<AttemptRating, string> = {
-  strong: "Lectura fuerte",
-  acceptable: "Decisión defendible",
-  weak: "Lectura débil",
+  strong: "Fuerte",
+  acceptable: "Defendible",
+  weak: "Débil",
 };
 
 const MANAGEMENT_ACTION_LABELS: Record<ManagementAction, string> = {
@@ -132,26 +137,26 @@ function formatTimeframeLabel(timeframe: ExerciseTimeframe) {
 
 function getPlanRating(score: number) {
   if (score >= 85) {
-    return "Plan fuerte";
+    return "Fuerte";
   }
 
   if (score >= 60) {
-    return "Plan defendible";
+    return "Defendible";
   }
 
-  return "Plan débil";
+  return "Débil";
 }
 
 function getManagementRating(score: number) {
   if (score >= 85) {
-    return "Gestión fuerte";
+    return "Fuerte";
   }
 
   if (score >= 60) {
-    return "Gestión defendible";
+    return "Defendible";
   }
 
-  return "Gestión débil";
+  return "Débil";
 }
 
 function getEvaluationSealPoints(
@@ -318,6 +323,7 @@ export function TrainingSession({
   const [decision, setDecision] = useState<TrainingDecision | null>(null);
   const [tradePlan, setTradePlan] = useState<TradePlan | null>(null);
   const [confidence, setConfidence] = useState(70);
+  const [waitCount, setWaitCount] = useState(0);
   const [phase, setPhase] = useState<SessionPhase>("deciding");
   const [result, setResult] = useState<ExerciseAttemptResult | null>(null);
   const [tradePlanResult, setTradePlanResult] = useState<TradePlanResult | null>(
@@ -345,13 +351,18 @@ export function TrainingSession({
   const savingAttemptIdRef = useRef<string | null>(null);
   const savedAttemptIdRef = useRef<string | null>(null);
 
+  const waitLimit = useMemo(() => getDecisionWaitLimit(exercise), [exercise]);
+  const activeExercise = useMemo(
+    () => createDecisionStageExercise(exercise, waitCount),
+    [exercise, waitCount],
+  );
   const directionalDecision = isDirectionalDecision(decision) ? decision : null;
   const managementCheckpoints = useMemo(
     () =>
       directionalDecision
-        ? getManagementCheckpoints(exercise, directionalDecision)
+        ? getManagementCheckpoints(activeExercise, directionalDecision)
         : [],
-    [directionalDecision, exercise],
+    [activeExercise, directionalDecision],
   );
   const currentCheckpoint = managementCheckpoints[managementCheckpointIndex] ?? null;
 
@@ -399,6 +410,7 @@ export function TrainingSession({
         exerciseVersion: exercise.version,
         decision,
         confidence,
+        waitCount,
         tradePlan: decision === "no_trade" ? null : tradePlan,
         managementActions: finalManagementActions,
       })
@@ -428,7 +440,7 @@ export function TrainingSession({
           setSaveStatus("error");
         });
     },
-    [confidence, decision, exercise.id, exercise.version, tradePlan],
+    [confidence, decision, exercise.id, exercise.version, tradePlan, waitCount],
   );
 
   const finishManagement = useCallback(
@@ -445,11 +457,11 @@ export function TrainingSession({
       );
       setManagementOutcome(outcome);
       setCandidateStop(null);
-      setRevealedCount(exercise.revealCount);
+      setRevealedCount(activeExercise.revealCount);
       setPhase("result");
       persistAttempt(finalActionInputs);
     },
-    [clearTimer, exercise.revealCount, persistAttempt],
+    [activeExercise.revealCount, clearTimer, persistAttempt],
   );
 
   useEffect(() => {
@@ -461,7 +473,7 @@ export function TrainingSession({
       return;
     }
 
-    if (revealedCount >= exercise.revealCount) {
+    if (revealedCount >= activeExercise.revealCount) {
       clearTimer();
       timerRef.current = window.setTimeout(() => {
         finishManagement(managementActions, managementActionInputs, {
@@ -475,7 +487,7 @@ export function TrainingSession({
     clearTimer();
     timerRef.current = window.setTimeout(() => {
       const nextOffset = revealedCount + 1;
-      const candle = getManagementCandle(exercise, nextOffset);
+      const candle = getManagementCandle(activeExercise, nextOffset);
       const evaluation = evaluateManagementCandle(
         directionalDecision,
         managementPosition,
@@ -502,7 +514,7 @@ export function TrainingSession({
         return;
       }
 
-      if (nextOffset >= exercise.revealCount) {
+      if (nextOffset >= activeExercise.revealCount) {
         finishManagement(managementActions, managementActionInputs, {
           label: "Fin del escenario · posición abierta",
           exitPrice: null,
@@ -514,7 +526,7 @@ export function TrainingSession({
   }, [
     clearTimer,
     directionalDecision,
-    exercise,
+    activeExercise,
     finishManagement,
     managementActionInputs,
     managementActions,
@@ -534,10 +546,22 @@ export function TrainingSession({
     setTradePlanResult(null);
 
     if (isDirectionalDecision(nextDecision)) {
-      setTradePlan(createNeutralTradePlan(exercise, nextDecision));
+      setTradePlan(createNeutralTradePlan(activeExercise, nextDecision));
     } else {
       setTradePlan(null);
     }
+  }
+
+  function handleWait() {
+    if (phase !== "deciding" || waitCount >= waitLimit) {
+      return;
+    }
+
+    setWaitCount((current) => current + 1);
+    setDecision(null);
+    setTradePlan(null);
+    setTradePlanResult(null);
+    setRevealedCount(0);
   }
 
   function handleConfirm() {
@@ -557,7 +581,7 @@ export function TrainingSession({
     savedAttemptIdRef.current = null;
     setSaveStatus("idle");
 
-    const nextResult = scoreExerciseAttempt(exercise, {
+    const nextResult = scoreExerciseAttempt(activeExercise, {
       decision,
       confidence,
     });
@@ -572,7 +596,7 @@ export function TrainingSession({
 
     if (!isDirectionalDecision(decision)) {
       setTradePlanResult(null);
-      setRevealedCount(exercise.revealCount);
+      setRevealedCount(activeExercise.revealCount);
       setPhase("result");
       persistAttempt([]);
       return;
@@ -584,7 +608,7 @@ export function TrainingSession({
       return;
     }
 
-    setTradePlanResult(scoreTradePlan(exercise, decision, confirmedTradePlan));
+    setTradePlanResult(scoreTradePlan(activeExercise, decision, confirmedTradePlan));
     setManagementPosition(createManagementPosition(confirmedTradePlan));
     setPhase("advancing");
   }
@@ -604,7 +628,7 @@ export function TrainingSession({
       action,
     };
     const actionScore = scoreManagementAction(
-      exercise,
+      activeExercise,
       directionalDecision,
       managementPosition,
       currentCheckpoint.afterRevealOffset,
@@ -615,7 +639,7 @@ export function TrainingSession({
 
     if (action === "close") {
       const currentCandle = getManagementCandle(
-        exercise,
+        activeExercise,
         currentCheckpoint.afterRevealOffset,
       );
 
@@ -652,7 +676,7 @@ export function TrainingSession({
     }
 
     const currentCandle = getManagementCandle(
-      exercise,
+      activeExercise,
       currentCheckpoint.afterRevealOffset,
     );
 
@@ -680,7 +704,7 @@ export function TrainingSession({
     }
 
     const currentCandle = getManagementCandle(
-      exercise,
+      activeExercise,
       currentCheckpoint.afterRevealOffset,
     );
 
@@ -696,7 +720,7 @@ export function TrainingSession({
     }
 
     const actionScore = scoreManagementAction(
-      exercise,
+      activeExercise,
       directionalDecision,
       managementPosition,
       currentCheckpoint.afterRevealOffset,
@@ -764,6 +788,7 @@ export function TrainingSession({
     setDecision(null);
     setTradePlan(null);
     setConfidence(70);
+    setWaitCount(0);
     setResult(null);
     setTradePlanResult(null);
     setRevealedCount(0);
@@ -809,7 +834,7 @@ export function TrainingSession({
 
   const currentManagementCandle =
     revealedCount > 0
-      ? getManagementCandle(exercise, revealedCount)
+      ? getManagementCandle(activeExercise, revealedCount)
       : null;
   const activeProtectedRiskR =
     directionalDecision && managementPosition
@@ -860,18 +885,18 @@ export function TrainingSession({
 
   const chart = (
     <MarketPreview
-      candles={exercise.candles}
+      candles={activeExercise.candles}
       compact={phase === "result"}
-      decisionIndex={exercise.decisionIndex}
+      decisionIndex={activeExercise.decisionIndex}
       editableTradePlanLines={phase === "moving_stop" ? ["stop"] : undefined}
       isRevealing={phase === "advancing"}
       onTradePlanChange={
         phase === "moving_stop" ? handleManagedPlanChange : setTradePlan
       }
-      revealCount={exercise.revealCount}
-      revealedCount={phase === "result" ? exercise.revealCount : revealedCount}
-      sourceLabel={exercise.source.label}
-      timeframe={exercise.timeframe}
+      revealCount={activeExercise.revealCount}
+      revealedCount={phase === "result" ? activeExercise.revealCount : revealedCount}
+      sourceLabel={activeExercise.source.label}
+      timeframe={activeExercise.timeframe}
       tradePlan={chartTradePlan}
       tradePlanDecision={directionalDecision}
       tradePlanDisabled={phase !== "deciding" && phase !== "moving_stop"}
@@ -914,12 +939,12 @@ export function TrainingSession({
     : [];
 
   const managementProgress = Math.round(
-    (revealedCount / Math.max(exercise.revealCount, 1)) * 100,
+    (revealedCount / Math.max(activeExercise.revealCount, 1)) * 100,
   );
   const nextCheckpoint = managementCheckpoints[managementCheckpointIndex] ?? null;
   const candlesToNextCheckpoint = nextCheckpoint
     ? Math.max(nextCheckpoint.afterRevealOffset - revealedCount, 0)
-    : Math.max(exercise.revealCount - revealedCount, 0);
+    : Math.max(activeExercise.revealCount - revealedCount, 0);
 
   return (
     <main className="mx-auto w-full max-w-[1480px] px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
@@ -968,7 +993,9 @@ export function TrainingSession({
                     {result.summary}
                   </h2>
                   <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-app-text-muted">
-                    {getDecisionMetaLabel(result.decision)} · Confianza {result.confidence}%
+                    {getDecisionMetaLabel(result.decision)}
+                    {waitCount > 0 ? ` · Esperaste ${waitCount} ${waitCount === 1 ? "vela" : "velas"}` : ""}
+                    {` · Confianza ${result.confidence}%`}
                   </p>
                 </div>
 
@@ -1257,7 +1284,9 @@ export function TrainingSession({
               <div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">Decisión</span>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-app-text-muted">Pendiente</span>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-app-text-muted">
+                    {waitCount > 0 ? `${waitCount} ${waitCount === 1 ? "vela extra" : "velas extra"}` : "Pendiente"}
+                  </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl border border-app-border bg-app-page-soft p-1">
                   {DECISION_OPTIONS.map((option) => {
@@ -1275,6 +1304,24 @@ export function TrainingSession({
                     );
                   })}
                 </div>
+                {waitLimit > 0 ? (
+                  <div className="mt-2.5">
+                    <button
+                      className="flex min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-app-border-strong bg-app-page-soft px-3.5 text-left transition hover:bg-app-page disabled:cursor-not-allowed disabled:opacity-45"
+                      disabled={phase !== "deciding" || waitCount >= waitLimit}
+                      onClick={handleWait}
+                      type="button"
+                    >
+                      <span>
+                        <span className="block text-[11px] font-medium text-app-text-soft">Esperar 1 vela</span>
+                        <span className="mt-0.5 block text-[9px] text-app-text-muted">Revela una vela y vuelve a decidir.</span>
+                      </span>
+                      <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-app-text-muted">
+                        {waitCount}/{waitLimit}
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-5 border-t border-app-border pt-5">
@@ -1363,7 +1410,7 @@ export function TrainingSession({
                 <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${managementProgress}%` }} />
               </div>
               <div className="mt-2 flex justify-between font-mono text-[8px] uppercase tracking-[0.1em] text-app-text-muted">
-                <span>{revealedCount}/{exercise.revealCount} velas</span>
+                <span>{revealedCount}/{activeExercise.revealCount} velas</span>
                 <span>{managementProgress}%</span>
               </div>
 

@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -21,6 +22,7 @@ const SKILL_PROFILE_SELECT = [
   "exercise_id",
   "skill_scores",
   "plan_component_scores",
+  "timing_score",
   "created_at",
 ].join(", ");
 

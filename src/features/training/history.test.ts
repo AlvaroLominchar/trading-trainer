@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -17,6 +18,7 @@ function getBaseRow() {
     timeframe: "15m",
     decision: "short",
     confidence: 72,
+    wait_count: 0,
     trade_plan: {
       entry: 85.8,
       stop: 87.2,
@@ -85,6 +87,23 @@ describe("parseTrainingHistoryAttempt", () => {
     expect(result?.skillScores).toHaveLength(2);
     expect(result?.planComponentScores).toHaveLength(4);
     expect(result?.managementActions[1]?.stop).toBe(86.5);
+    expect(result?.waitCount).toBe(0);
+  });
+
+  it("conserva la espera y mantiene compatibilidad con intentos anteriores", () => {
+    const waited = parseTrainingHistoryAttempt({
+      ...getBaseRow(),
+      wait_count: 2,
+    });
+    const legacyRow = { ...getBaseRow() } as Record<string, unknown>;
+    delete legacyRow.wait_count;
+    const legacy = parseTrainingHistoryAttempt(legacyRow);
+
+    expect(waited?.waitCount).toBe(2);
+    expect(legacy?.waitCount).toBe(0);
+    expect(
+      parseTrainingHistoryAttempt({ ...getBaseRow(), wait_count: 4 }),
+    ).toBeNull();
   });
 
   it("conserva correctamente una puntuación cero", () => {

@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,13 +11,15 @@ function row({
   exerciseId,
   createdAt,
   skills,
-  entryTimingScore,
+  timingScore,
+  legacyEntryTimingScore,
 }: {
   id: string;
   exerciseId: string;
   createdAt: string;
   skills: Array<{ skill: string; score: number; weight?: number }>;
-  entryTimingScore?: number | null;
+  timingScore?: number | null;
+  legacyEntryTimingScore?: number | null;
 }) {
   return {
     id,
@@ -26,11 +29,12 @@ function row({
       ...skill,
       weight: skill.weight ?? 1,
     })),
+    timing_score: timingScore ?? null,
     plan_component_scores:
-      entryTimingScore === undefined || entryTimingScore === null
+      legacyEntryTimingScore === undefined || legacyEntryTimingScore === null
         ? null
         : [
-            { component: "entry", score: entryTimingScore, weight: 0.25 },
+            { component: "entry", score: legacyEntryTimingScore, weight: 0.25 },
             { component: "invalidation", score: 75, weight: 0.35 },
           ],
   };
@@ -52,21 +56,36 @@ describe("parseSkillProfileAttempt", () => {
 
     expect(result?.exerciseId).toBe("scenario-a");
     expect(result?.skillScores).toHaveLength(2);
-    expect(result?.entryTimingScore).toBeNull();
+    expect(result?.timingScore).toBeNull();
   });
 
-  it("deriva Timing del componente Entrada del Plan persistido", () => {
+  it("mantiene compatibilidad derivando Timing de Entrada en intentos legacy", () => {
     const result = parseSkillProfileAttempt(
       row({
         id: "a",
         exerciseId: "scenario-a",
         createdAt: "2026-08-19T08:00:00.000Z",
         skills: [{ skill: "context_reading", score: 82 }],
-        entryTimingScore: 88,
+        legacyEntryTimingScore: 88,
       }),
     );
 
-    expect(result?.entryTimingScore).toBe(88);
+    expect(result?.timingScore).toBe(88);
+  });
+
+  it("prefiere el Timing persistido frente al componente Entrada legacy", () => {
+    const result = parseSkillProfileAttempt(
+      row({
+        id: "a",
+        exerciseId: "scenario-a",
+        createdAt: "2026-08-19T08:00:00.000Z",
+        skills: [{ skill: "context_reading", score: 82 }],
+        timingScore: 94,
+        legacyEntryTimingScore: 41,
+      }),
+    );
+
+    expect(result?.timingScore).toBe(94);
   });
 
   it("conserva una puntuación cero válida", () => {
@@ -173,7 +192,7 @@ describe("buildSkillProfile", () => {
           exerciseId: "scenario-b",
           createdAt: "2026-08-19T09:00:00.000Z",
           skills: [{ skill: "context_reading", score: 35 }],
-          entryTimingScore: 90,
+          timingScore: 90,
         }),
       ),
       parseSkillProfileAttempt(
@@ -182,7 +201,7 @@ describe("buildSkillProfile", () => {
           exerciseId: "scenario-a",
           createdAt: "2026-08-19T08:00:00.000Z",
           skills: [{ skill: "context_reading", score: 95 }],
-          entryTimingScore: 70,
+          timingScore: 70,
         }),
       ),
     ].filter((attempt) => attempt !== null);

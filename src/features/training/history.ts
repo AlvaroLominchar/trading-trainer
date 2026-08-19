@@ -1,3 +1,4 @@
+
 import {
   TRAINING_SKILLS,
   type ManagementAction,
@@ -51,6 +52,7 @@ export type TrainingHistoryAttempt = {
   timeframe: string;
   decision: TrainingDecision;
   confidence: number;
+  waitCount: number;
   tradePlan: TradePlan | null;
   ideaScore: number;
   ideaRating: string;
@@ -258,6 +260,19 @@ export function parseTrainingHistoryAttempt(
     return null;
   }
 
+  const waitCount =
+    value.wait_count === undefined || value.wait_count === null
+      ? 0
+      : Number.isInteger(value.wait_count) &&
+          (value.wait_count as number) >= 0 &&
+          (value.wait_count as number) <= 3
+        ? (value.wait_count as number)
+        : null;
+
+  if (waitCount === null) {
+    return null;
+  }
+
   if (
     typeof value.id !== "string" ||
     typeof value.exercise_id !== "string" ||
@@ -326,6 +341,7 @@ export function parseTrainingHistoryAttempt(
     timeframe: value.timeframe,
     decision: value.decision as TrainingDecision,
     confidence: value.confidence as number,
+    waitCount,
     tradePlan,
     ideaScore: value.idea_score,
     ideaRating: value.idea_rating,

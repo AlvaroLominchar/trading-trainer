@@ -1,9 +1,13 @@
+
 import { describe, expect, it } from "vitest";
 
 import {
   evaluateTrainingAttemptSubmission,
   type TrainingAttemptSubmission,
 } from "./attempt-persistence";
+import { createDecisionStageExercise } from "./decision-flow";
+import { generateSyntheticExercise } from "./exercises/synthetic-catalog";
+import { scoreExerciseAttempt } from "./scoring";
 
 const ATTEMPT_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -16,6 +20,7 @@ function getBaseSubmission(
     exerciseVersion: 1,
     decision: "short",
     confidence: 70,
+    waitCount: 0,
     tradePlan: {
       entry: 85.8,
       stop: 87.2,
@@ -142,6 +147,91 @@ describe("evaluateTrainingAttemptSubmission", () => {
         }),
       ),
     ).toThrow("posteriores al cierre");
+  });
+
+
+  it("recalcula la lectura desde el nuevo punto temporal después de esperar", () => {
+    const baseExercise = generateSyntheticExercise("compression", 4242);
+    const stageExercise = createDecisionStageExercise(baseExercise, 3);
+    const expected = scoreExerciseAttempt(stageExercise, {
+      decision: "no_trade",
+      confidence: 70,
+    });
+
+    const result = evaluateTrainingAttemptSubmission(
+      getBaseSubmission({
+        exerciseId: baseExercise.id,
+        exerciseVersion: baseExercise.version,
+        decision: "no_trade",
+        waitCount: 3,
+        tradePlan: null,
+        managementActions: [],
+      }),
+    );
+
+    expect(result.waitCount).toBe(3);
+    expect(result.rubricVersion).toBe(2);
+    expect(result.ideaScore).toBe(expected.overallScore);
+    expect(result.ideaSummary).toBe(expected.summary);
+    expect(result.timingScore).toBeTypeOf("number");
+  });
+
+  it("permite que esperar y terminar en no operar alimente Timing", () => {
+    const baseExercise = generateSyntheticExercise("range-midpoint", 4242);
+    const result = evaluateTrainingAttemptSubmission(
+      getBaseSubmission({
+        exerciseId: baseExercise.id,
+        exerciseVersion: baseExercise.version,
+        decision: "no_trade",
+        waitCount: 2,
+        tradePlan: null,
+        managementActions: [],
+      }),
+    );
+
+    expect(result.waitCount).toBe(2);
+    expect(result.timingScore).toBeGreaterThanOrEqual(90);
+    expect(result.outcome).toBe("no_trade");
+  });
+
+  it("mantiene el Timing direccional antiguo como la nota de Entrada cuando no se espera", () => {
+    const result = evaluateTrainingAttemptSubmission(
+      getBaseSubmission({
+        managementActions: [
+          { checkpointOffset: 2, action: "hold" },
+          { checkpointOffset: 5, action: "close" },
+        ],
+      }),
+    );
+    const entryScore = (result.planComponentScores as Array<{ component: string; score: number }> | null)?.find(
+      (component) => component.component === "entry",
+    )?.score;
+
+    expect(result.waitCount).toBe(0);
+    expect(result.timingScore).toBe(entryScore);
+  });
+
+  it("rechaza esperas en escenarios legacy o por encima del límite permitido", () => {
+    expect(() =>
+      evaluateTrainingAttemptSubmission(
+        getBaseSubmission({ waitCount: 1 }),
+      ),
+    ).toThrow("espera enviada no es válida");
+
+    const procedural = generateSyntheticExercise("range-midpoint", 4343);
+
+    expect(() =>
+      evaluateTrainingAttemptSubmission(
+        getBaseSubmission({
+          exerciseId: procedural.id,
+          exerciseVersion: procedural.version,
+          decision: "no_trade",
+          waitCount: 4,
+          tradePlan: null,
+          managementActions: [],
+        }),
+      ),
+    ).toThrow("espera enviada no es válida");
   });
 
   it("rechaza versiones de escenario que no coinciden con el código actual", () => {

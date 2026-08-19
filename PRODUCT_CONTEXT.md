@@ -1,3 +1,4 @@
+
 # PRODUCT_CONTEXT — trading-trainer
 
 > Contexto estable de producto para continuar el desarrollo en chats nuevos.
@@ -99,9 +100,11 @@ Una operación ganadora puede ser una mala decisión y una operación perdedora 
 
 La puntuación no puede depender únicamente de si el precio terminó subiendo o bajando.
 
-### 5.3 No operar es una decisión válida
+### 5.3 No operar y esperar no son lo mismo
 
 La aplicación debe poder recompensar correctamente la abstención cuando el escenario no justifique una operación según la rúbrica definida.
+
+`No operar` es una decisión terminal sobre la oportunidad que se está evaluando. `Esperar` es una acción temporal distinta: el usuario decide que todavía falta confirmación, revela una cantidad limitada de información adicional y vuelve a decidir después. Esta diferencia debe entrenar especialmente Timing y Disciplina sin convertir el futuro en una justificación retroactiva.
 
 ### 5.4 Feedback explicable
 
@@ -146,6 +149,7 @@ El bucle objetivo, que se implementará progresivamente, es:
    - Largo.
    - Corto.
    - No operar.
+   - O, cuando el escenario lo permita, Esperar una cantidad limitada de velas y volver a decidir con la nueva información visible.
 5. En fases posteriores, permitir definir:
    - Entrada.
    - Invalidación.
@@ -408,6 +412,7 @@ Primera meta jugable:
    - Largo.
    - Corto.
    - No operar.
+   - Esperar una vela y volver a decidir cuando el escenario lo admita.
 5. Nivel de confianza.
 6. Revelado del desarrollo posterior.
 7. Puntuación básica.

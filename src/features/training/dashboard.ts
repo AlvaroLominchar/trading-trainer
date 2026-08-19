@@ -1,3 +1,4 @@
+
 import {
   buildSkillProfile,
   type SkillProfile,
@@ -43,6 +44,7 @@ export type DashboardRecentAttempt = {
   createdAt: string;
   decision: TrainingDecision;
   decisionLabel: string;
+  waitCount: number;
   outcomeLabel: string;
   ideaScore: number;
   planScore: number | null;
@@ -156,7 +158,7 @@ function fallbackSkillProfile(
       exerciseId: attempt.exerciseId,
       createdAt: attempt.createdAt,
       skillScores: attempt.skillScores,
-      entryTimingScore:
+      timingScore:
         attempt.planComponentScores?.find((item) => item.component === "entry")
           ?.score ?? null,
     })),
@@ -187,6 +189,7 @@ function buildRecentAttempts(
     createdAt: attempt.createdAt,
     decision: attempt.decision,
     decisionLabel: getDecisionLabel(attempt.decision),
+    waitCount: attempt.waitCount,
     outcomeLabel: getOutcomeLabel(attempt.outcome),
     ideaScore: attempt.ideaScore,
     planScore: attempt.planScore,

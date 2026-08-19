@@ -1,3 +1,4 @@
+
 import { DEMO_EXERCISES, getDemoExercise } from "./demo-exercises";
 import { SYNTHETIC_EXERCISE_ARCHETYPES } from "../types";
 import type {
@@ -14,6 +15,7 @@ import type {
   SyntheticExerciseArchetype,
   TradePlanRubric,
   TrainingDecision,
+  TrainingSkill,
 } from "../types";
 
 export const SYNTHETIC_GENERATOR_VERSION = 2;
@@ -1998,6 +2000,279 @@ function buildIdeaRubric(
   );
 
   return { version: 1, decisions };
+}
+
+
+function shiftDecisionRubric(
+  rubric: ExerciseRubric["decisions"][TrainingDecision],
+  delta: number,
+  summary: string,
+  stageReason: string,
+): ExerciseRubric["decisions"][TrainingDecision] {
+  const skillScores: Partial<Record<TrainingSkill, number>> = {};
+
+  for (const [skill, score] of Object.entries(rubric.skillScores)) {
+    if (typeof score !== "number") {
+      continue;
+    }
+
+    skillScores[skill as TrainingSkill] = Math.round(clamp(score + delta, 0, 100));
+  }
+
+  return {
+    skillScores,
+    summary,
+    reasons: [stageReason, ...rubric.reasons.slice(0, 2)],
+  };
+}
+
+function getObservedDirectionAfterWait(
+  candles: readonly Candle[],
+  originalDecisionIndex: number,
+  waitCount: number,
+): DirectionalDecision | null {
+  const originalCandle = candles[originalDecisionIndex];
+  const stageCandle = candles[originalDecisionIndex + waitCount];
+
+  if (!originalCandle || !stageCandle) {
+    return null;
+  }
+
+  const referenceCandles = candles.slice(
+    Math.max(0, originalDecisionIndex - 13),
+    originalDecisionIndex + 1,
+  );
+  const atr = Math.max(
+    getAverageTrueRange(referenceCandles),
+    Math.abs(originalCandle.close) * 0.0015,
+  );
+  const displacement = stageCandle.close - originalCandle.close;
+
+  if (Math.abs(displacement) < atr * 0.32) {
+    return null;
+  }
+
+  return displacement > 0 ? "long" : "short";
+}
+
+function buildWaitStageIdeaRubric(
+  archetype: SyntheticExerciseArchetype,
+  traits: ScenarioTraits,
+  waitCount: number,
+  candles: readonly Candle[],
+  originalDecisionIndex: number,
+): ExerciseRubric {
+  const base = buildIdeaRubric(archetype, traits);
+
+  if (waitCount <= 0) {
+    return base;
+  }
+
+  const decisions = {
+    long: base.decisions.long,
+    no_trade: base.decisions.no_trade,
+    short: base.decisions.short,
+  } satisfies ExerciseRubric["decisions"];
+  const waitedLabel = waitCount === 1 ? "1 vela" : `${waitCount} velas`;
+
+  if (archetype === "range-midpoint") {
+    decisions.no_trade = shiftDecisionRubric(
+      base.decisions.no_trade,
+      0,
+      `Tras esperar ${waitedLabel}, el precio sigue dentro de una estructura de equilibrio sin una ventaja direccional suficientemente limpia.`,
+      "La información añadida no ha convertido la rotación del rango en una ruptura aceptada.",
+    );
+    return { version: 2, decisions };
+  }
+
+  if (archetype === "compression") {
+    const observedDirection = getObservedDirectionAfterWait(
+      candles,
+      originalDecisionIndex,
+      waitCount,
+    );
+
+    if (!observedDirection) {
+      decisions.no_trade = shiftDecisionRubric(
+        base.decisions.no_trade,
+        -Math.min(waitCount * 2, 5),
+        `Tras esperar ${waitedLabel}, la compresión todavía no ofrece una expansión suficientemente definida.`,
+        "La vela nueva añade información, pero aún no establece una dirección con aceptación clara.",
+      );
+      return { version: 2, decisions };
+    }
+
+    const opposite: DirectionalDecision =
+      observedDirection === "long" ? "short" : "long";
+    const directionalBoost = waitCount === 1 ? 20 : waitCount === 2 ? 42 : 54;
+    const noTradePenalty = waitCount === 1 ? -3 : waitCount === 2 ? -12 : -25;
+
+    decisions[observedDirection] = shiftDecisionRubric(
+      base.decisions[observedDirection],
+      directionalBoost,
+      waitCount >= 3
+        ? `Tras esperar ${waitedLabel}, la compresión ya ha empezado a resolver con una expansión ${observedDirection === "long" ? "alcista" : "bajista"} suficientemente clara para plantear participación.`
+        : `Tras esperar ${waitedLabel}, aparece una primera expansión ${observedDirection === "long" ? "alcista" : "bajista"}, aunque todavía conviene exigir algo más de aceptación.`,
+      "La decisión utiliza únicamente las velas ya reveladas después de la compresión.",
+    );
+    decisions[opposite] = shiftDecisionRubric(
+      base.decisions[opposite],
+      -6,
+      `La información añadida no respalda operar contra la expansión ${observedDirection === "long" ? "alcista" : "bajista"} que empieza a aparecer.`,
+      "Las velas reveladas después de esperar se desplazan en la dirección contraria a esta decisión.",
+    );
+    decisions.no_trade = shiftDecisionRubric(
+      base.decisions.no_trade,
+      noTradePenalty,
+      waitCount >= 3
+        ? "No operar sigue siendo posible, pero la espera ya ha cumplido su función: ahora existe una resolución direccional visible."
+        : "No operar sigue siendo una decisión sólida mientras la expansión recién aparecida no acumule suficiente aceptación.",
+      "La calidad de abstenerse disminuye a medida que la compresión deja de ser ambigua.",
+    );
+    return { version: 2, decisions };
+  }
+
+  if (archetype === "false-breakout") {
+    const reversal = traits.setupDirection as DirectionalDecision;
+    const reversalBoost = waitCount === 1 ? 5 : waitCount === 2 ? 12 : 16;
+    const noTradePenalty = waitCount === 1 ? -3 : waitCount === 2 ? -10 : -18;
+
+    decisions[reversal] = shiftDecisionRubric(
+      base.decisions[reversal],
+      reversalBoost,
+      `Tras esperar ${waitedLabel}, el rechazo de la falsa ruptura gana continuidad y hace más defendible la reversión.`,
+      "Las nuevas velas añaden confirmación al fallo sin utilizar información posterior al nuevo punto de decisión.",
+    );
+    decisions.no_trade = shiftDecisionRubric(
+      base.decisions.no_trade,
+      noTradePenalty,
+      waitCount >= 3
+        ? "No operar sigue siendo prudente, aunque la confirmación acumulada ya favorece claramente la reversión del fallo."
+        : "No operar conserva calidad mientras la reversión todavía está construyendo confirmación.",
+      "La abstención pierde ventaja gradualmente cuando el rechazo empieza a sostenerse.",
+    );
+    return { version: 2, decisions };
+  }
+
+  if (archetype === "exhaustion-reversal") {
+    const reversal = traits.setupDirection as DirectionalDecision;
+    const clearFailure = traits.variant <= 2;
+
+    if (!clearFailure) {
+      const reversalBoost = waitCount === 1 ? 4 : waitCount === 2 ? 12 : 18;
+      const noTradePenalty = waitCount === 1 ? -4 : waitCount === 2 ? -12 : -20;
+
+      decisions[reversal] = shiftDecisionRubric(
+        base.decisions[reversal],
+        reversalBoost,
+        `Tras esperar ${waitedLabel}, el agotamiento empieza a transformarse en una reversión con más estructura visible.`,
+        "La información añadida reduce la necesidad de anticipar el giro antes de que aparezca confirmación.",
+      );
+      decisions.no_trade = shiftDecisionRubric(
+        base.decisions.no_trade,
+        noTradePenalty,
+        waitCount >= 3
+          ? "No operar sigue siendo conservador, pero las velas añadidas ya han reducido gran parte de la ambigüedad inicial."
+          : "No operar sigue siendo robusto mientras el giro todavía no complete suficiente estructura.",
+        "La abstención pierde parte de su ventaja conforme el cambio de ritmo se vuelve observable.",
+      );
+      return { version: 2, decisions };
+    }
+  }
+
+  const preferred = traits.setupDirection as DirectionalDecision;
+  const preferredBoost = Math.min(waitCount * 2, 5);
+  const noTradePenalty = -Math.min(waitCount * 4, 12);
+
+  decisions[preferred] = shiftDecisionRubric(
+    base.decisions[preferred],
+    preferredBoost,
+    `Tras esperar ${waitedLabel}, la estructura sigue favoreciendo la misma dirección y añade algo más de confirmación.`,
+    "La espera no cambia la tesis dominante, aunque sí retrasa el momento de participación.",
+  );
+  decisions.no_trade = shiftDecisionRubric(
+    base.decisions.no_trade,
+    noTradePenalty,
+    "No operar sigue siendo posible, pero la información añadida mantiene una alternativa direccional mejor respaldada.",
+    "La espera aporta confirmación sin invalidar la lectura que ya era visible antes.",
+  );
+
+  return { version: 2, decisions };
+}
+
+export function createSyntheticDecisionStageExercise(
+  exercise: Exercise,
+  waitCount: number,
+): Exercise | undefined {
+  if (!Number.isInteger(waitCount) || waitCount < 0) {
+    return undefined;
+  }
+
+  if (waitCount === 0) {
+    return exercise;
+  }
+
+  const generation = exercise.source.generation;
+
+  if (
+    generation?.generator !== "procedural" ||
+    generation.generatorVersion !== SYNTHETIC_GENERATOR_VERSION
+  ) {
+    return undefined;
+  }
+
+  const decisionIndex = exercise.decisionIndex + waitCount;
+  const revealCount = exercise.revealCount - waitCount;
+
+  if (
+    revealCount < 8 ||
+    decisionIndex >= exercise.candles.length ||
+    decisionIndex + revealCount >= exercise.candles.length
+  ) {
+    return undefined;
+  }
+
+  const traits = getScenarioTraits(generation.archetype, generation.seed);
+  const visibleCandles = exercise.candles.slice(0, decisionIndex + 1);
+  const observedDirection =
+    generation.archetype === "compression"
+      ? getObservedDirectionAfterWait(
+          exercise.candles,
+          exercise.decisionIndex,
+          waitCount,
+        )
+      : null;
+  const managementRubrics =
+    generation.archetype === "compression" && observedDirection
+      ? {
+          long:
+            observedDirection === "long"
+              ? buildAlignedManagementRubric()
+              : buildOpposedManagementRubric(),
+          short:
+            observedDirection === "short"
+              ? buildAlignedManagementRubric()
+              : buildOpposedManagementRubric(),
+        }
+      : exercise.managementRubrics;
+
+  return {
+    ...exercise,
+    decisionIndex,
+    revealCount,
+    rubric: buildWaitStageIdeaRubric(
+      generation.archetype,
+      traits,
+      waitCount,
+      exercise.candles,
+      exercise.decisionIndex,
+    ),
+    tradePlanRubrics: buildTradePlanRubrics(
+      visibleCandles,
+      generation.archetype,
+    ),
+    managementRubrics,
+  };
 }
 
 function buildSkills(archetype: SyntheticExerciseArchetype) {

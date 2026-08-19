@@ -1,3 +1,4 @@
+
 export const TRAINING_DECISIONS = ["long", "no_trade", "short"] as const;
 
 export type TrainingDecision = (typeof TRAINING_DECISIONS)[number];
@@ -58,7 +59,7 @@ export type DecisionRubric = {
 };
 
 export type ExerciseRubric = {
-  version: 1;
+  version: 1 | 2;
   decisions: Record<TrainingDecision, DecisionRubric>;
 };
 

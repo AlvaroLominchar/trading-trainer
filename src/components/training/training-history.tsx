@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 import {
@@ -292,6 +293,12 @@ function AttemptCard({
               </time>
               <span aria-hidden="true">·</span>
               <span>{getOutcomeLabel(attempt.outcome)}</span>
+              {attempt.waitCount > 0 ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>Esperó {attempt.waitCount} {attempt.waitCount === 1 ? "vela" : "velas"}</span>
+                </>
+              ) : null}
               <span aria-hidden="true">·</span>
               <span>Confianza {attempt.confidence}%</span>
             </div>
