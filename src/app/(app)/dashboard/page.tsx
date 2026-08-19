@@ -41,7 +41,7 @@ export default async function DashboardPage() {
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Aquí aparecerán tus habilidades, sesiones y áreas a mejorar cuando empecemos a guardar intentos reales.
+            Tus intentos ya se guardan. El historial crece con decisiones reales y el perfil de habilidades llegará sobre esa misma base.
           </p>
         </div>
 
@@ -85,11 +85,11 @@ export default async function DashboardPage() {
             </div>
 
             <h2 className="mt-6 text-3xl font-medium tracking-[-0.05em] text-app-text sm:text-4xl">
-              Mira el gráfico. Toma postura. Descubre el futuro después.
+              Mira el gráfico. Toma postura. Gestiona lo que ocurra después.
             </h2>
 
             <p className="mt-4 max-w-xl text-sm leading-6 text-app-text-soft">
-              La primera sala visual ya está preparada para alojar nuestro motor de ejercicios. Todavía no puntúa ni guarda decisiones.
+              La sala ya evalúa Lectura, Plan y Gestión por separado, revela el escenario de forma progresiva y guarda cada intento terminado.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -100,9 +100,12 @@ export default async function DashboardPage() {
                 Entrar a la sala
               </Link>
 
-              <span className="inline-flex min-h-11 items-center rounded-xl border border-app-border px-4 font-mono text-[9px] uppercase tracking-[0.13em] text-app-text-muted">
-                Long · No trade · Short
-              </span>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-app-border px-5 text-sm text-app-text-soft transition duration-200 hover:border-app-border-strong hover:bg-app-surface-hover hover:text-app-text"
+                href="/history"
+              >
+                Ver historial
+              </Link>
             </div>
           </div>
 
@@ -140,10 +143,10 @@ export default async function DashboardPage() {
 
           <div className="mt-6 rounded-2xl border border-dashed border-app-border-strong p-4">
             <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-              No hay datos inventados
+              Sin estadísticas inventadas
             </span>
             <p className="mt-2 text-xs leading-5 text-app-text-muted">
-              Se activará cuando exista el modelo real de ejercicios y persistencia.
+              Se activará cuando definamos la selección diaria y tengamos suficiente historial real para sostenerla.
             </p>
           </div>
         </article>
@@ -155,11 +158,18 @@ export default async function DashboardPage() {
             Tu progreso
           </span>
           <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-            Aún no hay sesiones puntuadas
+            Historial real, perfil en construcción
           </h2>
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            No mostraremos porcentajes ni rachas ficticias. Este espacio se llenará únicamente con intentos reales.
+            Ya puedes revisar cada intento guardado. Las habilidades agregadas aparecerán aquí cuando definamos cómo medir evolución sin distorsionar las rúbricas.
           </p>
+
+          <Link
+            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-xl border border-app-border px-4 text-xs font-medium text-app-text-soft transition duration-200 hover:border-app-border-strong hover:bg-app-surface-hover hover:text-app-text"
+            href="/history"
+          >
+            Abrir historial
+          </Link>
 
           <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             {skillPlaceholders.map((skill) => (
@@ -178,7 +188,7 @@ export default async function DashboardPage() {
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div>
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
-                Cómo entrenaremos
+                Cómo entrenas
               </span>
               <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
                 Cuatro momentos, una misma decisión
@@ -193,8 +203,8 @@ export default async function DashboardPage() {
             {[
               ["01", "Analiza", "Solo ves la información disponible hasta ese instante."],
               ["02", "Decide", "Elige largo, corto o no operar y declara tu confianza."],
-              ["03", "Revela", "El gráfico continúa después de bloquear tu decisión."],
-              ["04", "Aprende", "La evaluación separará proceso, disciplina y resultado."],
+              ["03", "Gestiona", "El futuro avanza y solo te detiene cuando existe una decisión relevante."],
+              ["04", "Aprende", "La corrección separa Lectura, Plan y Gestión antes de guardar el intento."],
             ].map(([number, title, detail]) => (
               <div
                 className="rounded-2xl border border-app-border bg-app-page-soft p-4"

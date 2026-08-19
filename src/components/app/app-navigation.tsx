@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavigationIcon = "dashboard" | "train" | "settings";
+type NavigationIcon = "dashboard" | "train" | "history" | "settings";
 
 type NavigationItem = {
   href: string;
@@ -21,6 +21,11 @@ const navigationItems: readonly NavigationItem[] = [
     href: "/train",
     label: "Entrenar",
     icon: "train",
+  },
+  {
+    href: "/history",
+    label: "Historial",
+    icon: "history",
   },
   {
     href: "/settings",
@@ -71,6 +76,32 @@ function NavigationIcon({ icon }: { icon: NavigationIcon }) {
     );
   }
 
+  if (icon === "history") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="size-4"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M4.75 7.75H8v-3.25M5.4 7.25A8 8 0 1 1 4 12"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.6"
+        />
+        <path
+          d="M12 8.25V12l2.6 1.6"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.6"
+        />
+      </svg>
+    );
+  }
+
   return (
     <svg
       aria-hidden="true"
@@ -107,7 +138,7 @@ export function AppNavigation({
     return (
       <nav
         aria-label="Navegación principal"
-        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 gap-1 rounded-2xl border border-app-border bg-app-page-soft/95 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-app-border bg-app-page-soft/95 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden"
       >
         {navigationItems.map((item) => {
           const isActive = isActiveRoute(pathname, item.href);
@@ -115,7 +146,7 @@ export function AppNavigation({
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[10px] font-medium transition duration-200 ${
+              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-medium transition duration-200 sm:px-2 sm:text-[10px] ${
                 isActive
                   ? "bg-app-surface-active text-app-text"
                   : "text-app-text-muted hover:bg-app-surface-subtle hover:text-app-text"
@@ -124,7 +155,7 @@ export function AppNavigation({
               key={item.href}
             >
               <NavigationIcon icon={item.icon} />
-              {item.label}
+              <span className="max-w-full truncate">{item.label}</span>
             </Link>
           );
         })}
