@@ -12,12 +12,6 @@ export const metadata: Metadata = {
     "Panel de entrenamiento, progreso y acceso a sesiones de Trading Trainer.",
 };
 
-const skillPlaceholders = [
-  "Lectura de contexto",
-  "Disciplina",
-  "Gestión de riesgo",
-  "Calibración de confianza",
-] as const;
 
 export default async function DashboardPage() {
   const currentProfile = await getCurrentProfile();
@@ -41,7 +35,7 @@ export default async function DashboardPage() {
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Tus intentos ya se guardan. El historial crece con decisiones reales y el perfil de habilidades llegará sobre esa misma base.
+            Tus intentos ya se guardan. El historial y el perfil de habilidades se construyen sobre esas decisiones reales, sin inventar una nota global.
           </p>
         </div>
 
@@ -158,29 +152,36 @@ export default async function DashboardPage() {
             Tu progreso
           </span>
           <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-            Historial real, perfil en construcción
+            Un perfil basado en evidencia real
           </h2>
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Ya puedes revisar cada intento guardado. Las habilidades agregadas aparecerán aquí cuando definamos cómo medir evolución sin distorsionar las rúbricas.
+            Tus intentos ya se agrupan por Contexto, Tendencia, Rango, Disciplina y Falsa ruptura. Cada habilidad conserva su propia evidencia sin mezclarse en una nota total.
           </p>
 
           <Link
-            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-xl border border-app-border px-4 text-xs font-medium text-app-text-soft transition duration-200 hover:border-app-border-strong hover:bg-app-surface-hover hover:text-app-text"
-            href="/history"
+            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-xl bg-app-accent px-4 text-xs font-semibold text-app-accent-text transition duration-200 hover:bg-app-accent-hover"
+            href="/skills"
           >
-            Abrir historial
+            Abrir perfil de habilidades
           </Link>
 
           <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-            {skillPlaceholders.map((skill) => (
-              <div
-                className="flex items-center justify-between rounded-xl border border-app-border bg-app-page-soft px-4 py-3"
-                key={skill}
-              >
-                <span className="text-xs text-app-text-soft">{skill}</span>
-                <span className="font-mono text-xs text-app-text-muted">—</span>
-              </div>
-            ))}
+            <div className="rounded-xl border border-app-border bg-app-page-soft px-4 py-3">
+              <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
+                Fuente
+              </span>
+              <span className="mt-1.5 block text-xs text-app-text-soft">
+                Intentos persistidos
+              </span>
+            </div>
+            <div className="rounded-xl border border-app-border bg-app-page-soft px-4 py-3">
+              <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
+                Nota global
+              </span>
+              <span className="mt-1.5 block text-xs text-app-text-soft">
+                No existe
+              </span>
+            </div>
           </div>
         </article>
 

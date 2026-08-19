@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         "/history",
         "/login",
         "/settings",
+        "/skills",
         "/train",
         "/account-deleted",
       ],

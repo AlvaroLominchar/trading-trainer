@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavigationIcon = "dashboard" | "train" | "history" | "settings";
+type NavigationIcon = "dashboard" | "train" | "history" | "skills" | "settings";
 
 type NavigationItem = {
   href: string;
   label: string;
+  mobileLabel: string;
   icon: NavigationIcon;
 };
 
@@ -15,21 +16,31 @@ const navigationItems: readonly NavigationItem[] = [
   {
     href: "/dashboard",
     label: "Dashboard",
+    mobileLabel: "Inicio",
     icon: "dashboard",
   },
   {
     href: "/train",
     label: "Entrenar",
+    mobileLabel: "Entrenar",
     icon: "train",
   },
   {
     href: "/history",
     label: "Historial",
+    mobileLabel: "Historial",
     icon: "history",
+  },
+  {
+    href: "/skills",
+    label: "Habilidades",
+    mobileLabel: "Perfil",
+    icon: "skills",
   },
   {
     href: "/settings",
     label: "Configuración",
+    mobileLabel: "Ajustes",
     icon: "settings",
   },
 ];
@@ -102,6 +113,30 @@ function NavigationIcon({ icon }: { icon: NavigationIcon }) {
     );
   }
 
+  if (icon === "skills") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="size-4"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M12 3.75 18.5 7.5v9L12 20.25 5.5 16.5v-9L12 3.75Z"
+          stroke="currentColor"
+          strokeLinejoin="round"
+          strokeWidth="1.6"
+        />
+        <path
+          d="M12 7.25v9.5M8.5 9.25l7 5.5M15.5 9.25l-7 5.5"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="1.35"
+        />
+      </svg>
+    );
+  }
+
   return (
     <svg
       aria-hidden="true"
@@ -138,7 +173,7 @@ export function AppNavigation({
     return (
       <nav
         aria-label="Navegación principal"
-        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-app-border bg-app-page-soft/95 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-2 bottom-2 z-40 grid grid-cols-5 gap-0.5 rounded-2xl border border-app-border bg-app-page-soft/95 p-1 shadow-2xl backdrop-blur-xl lg:hidden"
       >
         {navigationItems.map((item) => {
           const isActive = isActiveRoute(pathname, item.href);
@@ -146,7 +181,7 @@ export function AppNavigation({
           return (
             <Link
               aria-current={isActive ? "page" : undefined}
-              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-medium transition duration-200 sm:px-2 sm:text-[10px] ${
+              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[8px] font-medium transition duration-200 sm:px-1 sm:text-[9px] ${
                 isActive
                   ? "bg-app-surface-active text-app-text"
                   : "text-app-text-muted hover:bg-app-surface-subtle hover:text-app-text"
@@ -155,7 +190,7 @@ export function AppNavigation({
               key={item.href}
             >
               <NavigationIcon icon={item.icon} />
-              <span className="max-w-full truncate">{item.label}</span>
+              <span className="max-w-full truncate">{item.mobileLabel}</span>
             </Link>
           );
         })}
