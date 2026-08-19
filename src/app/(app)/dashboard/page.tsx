@@ -3,15 +3,51 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { OnboardingCard } from "@/components/app/onboarding-card";
-import { UserAvatar } from "@/components/app/user-avatar";
+import { TrainingDashboard } from "@/components/training/training-dashboard";
+import {
+  buildTrainingDashboard,
+  DASHBOARD_ATTEMPT_WINDOW,
+} from "@/features/training/dashboard";
+import {
+  parseTrainingHistoryAttempt,
+  type TrainingHistoryAttempt,
+} from "@/features/training/history";
+import {
+  buildSkillProfile,
+  parseSkillProfileAttempt,
+  type SkillProfileAttempt,
+} from "@/features/training/skill-profile";
 import { getCurrentProfile } from "@/lib/auth/current-profile";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Dashboard",
   description:
-    "Panel de entrenamiento, progreso y acceso a sesiones de Trading Trainer.",
+    "Resumen principal de entrenamiento, rendimiento, decisiones, historial y habilidades.",
 };
 
+const DASHBOARD_SELECT = [
+  "id",
+  "exercise_id",
+  "exercise_title",
+  "timeframe",
+  "decision",
+  "confidence",
+  "trade_plan",
+  "idea_score",
+  "idea_rating",
+  "is_top_rated_decision",
+  "skill_scores",
+  "idea_summary",
+  "idea_reasons",
+  "plan_score",
+  "plan_component_scores",
+  "management_score",
+  "management_actions",
+  "outcome",
+  "exit_price",
+  "created_at",
+].join(", ");
 
 export default async function DashboardPage() {
   const currentProfile = await getCurrentProfile();
@@ -21,210 +57,84 @@ export default async function DashboardPage() {
   }
 
   const { profile } = currentProfile;
+  const supabase = await createClient();
+
+  const { data, error, count } = await supabase
+    .from("training_attempts")
+    .select(DASHBOARD_SELECT, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .limit(DASHBOARD_ATTEMPT_WINDOW);
+
+  if (error) {
+    console.error("Training dashboard query failed:", error);
+  }
+
+  const rows = data ?? [];
+  const attempts = rows
+    .map((row: unknown) => parseTrainingHistoryAttempt(row))
+    .filter(
+      (attempt: TrainingHistoryAttempt | null): attempt is TrainingHistoryAttempt =>
+        attempt !== null,
+    );
+  const skillProfileAttempts = rows
+    .map((row: unknown) => parseSkillProfileAttempt(row))
+    .filter(
+      (attempt: SkillProfileAttempt | null): attempt is SkillProfileAttempt =>
+        attempt !== null,
+    );
+
+  const malformedHistoryRows = rows.length - attempts.length;
+
+  if (malformedHistoryRows > 0) {
+    console.error(
+      `Training dashboard skipped ${malformedHistoryRows} malformed persisted attempt(s).`,
+    );
+  }
+
+  const malformedSkillRows = rows.length - skillProfileAttempts.length;
+
+  if (malformedSkillRows > 0) {
+    console.error(
+      `Training dashboard skipped ${malformedSkillRows} malformed skill-profile attempt(s).`,
+    );
+  }
+
+  const summary = buildTrainingDashboard(attempts, {
+    totalAttempts: count ?? attempts.length,
+    skillProfile: buildSkillProfile(skillProfileAttempts),
+  });
 
   return (
     <main className="mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
-      <header className="flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
+      <header className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
         <div className="max-w-2xl">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
             Dashboard
           </span>
-
           <h1 className="mt-3 text-3xl font-medium tracking-[-0.05em] text-app-text sm:text-4xl">
-            Hola, {profile.firstName}. ¿Entrenamos una decisión?
+            Hola, {profile.firstName}. ¿Seguimos entrenando?
           </h1>
-
           <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Tus intentos ya se guardan. El historial y el perfil de habilidades se construyen sobre esas decisiones reales, sin inventar una nota global.
+            Un vistazo rápido a cómo estás resolviendo tus ejercicios.
           </p>
         </div>
 
-        <div className="hidden items-center gap-3 sm:flex">
-          <UserAvatar
-            alt={`Avatar de ${profile.displayName}`}
-            avatarUrl={profile.avatarUrl}
-            initial={profile.initial}
-            size={42}
-          />
-          <div className="max-w-48">
-            <span className="block truncate text-sm text-app-text">
-              {profile.displayName}
-            </span>
-            <span className="mt-1 block truncate text-xs text-app-text-muted">
-              {profile.email}
-            </span>
-          </div>
-        </div>
+        <Link
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text transition duration-200 hover:bg-app-accent-hover"
+          href="/train"
+        >
+          Entrenar ahora
+        </Link>
       </header>
 
       {!profile.onboardingCompleted ? (
         <OnboardingCard firstName={profile.firstName} />
       ) : null}
 
-      <section className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
-        <article className="relative overflow-hidden rounded-3xl border border-app-border-strong bg-app-surface-active p-6 sm:p-8">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-app-accent opacity-[0.05] blur-3xl"
-          />
-
-          <div className="relative max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-app-border bg-app-page-soft px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-                Sesión guiada
-              </span>
-              <span className="rounded-full border border-app-border px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-                Datos sintéticos
-              </span>
-            </div>
-
-            <h2 className="mt-6 text-3xl font-medium tracking-[-0.05em] text-app-text sm:text-4xl">
-              Mira el gráfico. Toma postura. Gestiona lo que ocurra después.
-            </h2>
-
-            <p className="mt-4 max-w-xl text-sm leading-6 text-app-text-soft">
-              La sala ya evalúa Lectura, Plan y Gestión por separado, revela el escenario de forma progresiva y guarda cada intento terminado.
-            </p>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-app-accent px-5 text-sm font-semibold text-app-accent-text transition duration-200 hover:bg-app-accent-hover"
-                href="/train"
-              >
-                Entrar a la sala
-              </Link>
-
-              <Link
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-app-border px-5 text-sm text-app-text-soft transition duration-200 hover:border-app-border-strong hover:bg-app-surface-hover hover:text-app-text"
-                href="/history"
-              >
-                Ver historial
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative mt-10 grid h-24 grid-cols-12 items-end gap-1.5 overflow-hidden rounded-2xl border border-app-border bg-app-page-soft/60 px-4 pb-4 pt-6">
-            {[38, 52, 34, 63, 48, 72, 58, 81, 67, 74, 61, 88].map(
-              (height, index) => (
-                <span
-                  className="rounded-t-sm bg-app-accent opacity-40"
-                  key={`${height}-${index}`}
-                  style={{ height: `${height}%` }}
-                />
-              ),
-            )}
-          </div>
-        </article>
-
-        <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
-                Reto diario
-              </span>
-              <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-                Próximamente
-              </h2>
-            </div>
-            <span className="grid size-10 place-items-center rounded-xl border border-app-border bg-app-page-soft font-mono text-xs text-app-text-muted">
-              01
-            </span>
-          </div>
-
-          <p className="mt-5 text-sm leading-6 text-app-text-soft">
-            Todos resolverán el mismo escenario y podremos comparar decisiones sin revelar el futuro antes de tiempo.
-          </p>
-
-          <div className="mt-6 rounded-2xl border border-dashed border-app-border-strong p-4">
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-muted">
-              Sin estadísticas inventadas
-            </span>
-            <p className="mt-2 text-xs leading-5 text-app-text-muted">
-              Se activará cuando definamos la selección diaria y tengamos suficiente historial real para sostenerla.
-            </p>
-          </div>
-        </article>
-      </section>
-
-      <section className="mt-4 grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
-        <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-6">
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
-            Tu progreso
-          </span>
-          <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-            Un perfil basado en evidencia real
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-app-text-soft">
-            Tus intentos ya se agrupan por Contexto, Tendencia, Rango, Disciplina y Falsa ruptura. Cada habilidad conserva su propia evidencia sin mezclarse en una nota total.
-          </p>
-
-          <Link
-            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-xl bg-app-accent px-4 text-xs font-semibold text-app-accent-text transition duration-200 hover:bg-app-accent-hover"
-            href="/skills"
-          >
-            Abrir perfil de habilidades
-          </Link>
-
-          <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="rounded-xl border border-app-border bg-app-page-soft px-4 py-3">
-              <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
-                Fuente
-              </span>
-              <span className="mt-1.5 block text-xs text-app-text-soft">
-                Intentos persistidos
-              </span>
-            </div>
-            <div className="rounded-xl border border-app-border bg-app-page-soft px-4 py-3">
-              <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
-                Nota global
-              </span>
-              <span className="mt-1.5 block text-xs text-app-text-soft">
-                No existe
-              </span>
-            </div>
-          </div>
-        </article>
-
-        <article className="rounded-3xl border border-app-border bg-app-surface-subtle p-6 sm:p-7">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">
-                Cómo entrenas
-              </span>
-              <h2 className="mt-2 text-xl font-medium tracking-[-0.035em] text-app-text">
-                Cuatro momentos, una misma decisión
-              </h2>
-            </div>
-            <span className="rounded-full border border-app-border px-3 py-1.5 text-[9px] text-app-text-muted">
-              V1
-            </span>
-          </div>
-
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            {[
-              ["01", "Analiza", "Solo ves la información disponible hasta ese instante."],
-              ["02", "Decide", "Elige largo, corto o no operar y declara tu confianza."],
-              ["03", "Gestiona", "El futuro avanza y solo te detiene cuando existe una decisión relevante."],
-              ["04", "Aprende", "La corrección separa Lectura, Plan y Gestión antes de guardar el intento."],
-            ].map(([number, title, detail]) => (
-              <div
-                className="rounded-2xl border border-app-border bg-app-page-soft p-4"
-                key={number}
-              >
-                <span className="font-mono text-[9px] text-app-text-muted">
-                  {number}
-                </span>
-                <h3 className="mt-4 text-sm font-medium text-app-text">
-                  {title}
-                </h3>
-                <p className="mt-2 text-[11px] leading-5 text-app-text-muted">
-                  {detail}
-                </p>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
+      <TrainingDashboard
+        summary={summary}
+        unavailable={Boolean(error)}
+      />
     </main>
   );
 }
