@@ -1,4 +1,3 @@
-
 "use server";
 
 import { createHash } from "node:crypto";
@@ -7,13 +6,24 @@ import {
   evaluateTrainingAttemptSubmission,
   type TrainingAttemptSubmission,
 } from "@/features/training/attempt-persistence";
+import {
+  parseSkillProfileAttempt,
+  type SkillProfileAttempt,
+} from "@/features/training/skill-profile";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-export type SaveTrainingAttemptResult = {
-  status: "saved" | "error";
-  message: string;
-};
+export type SaveTrainingAttemptResult =
+  | {
+      status: "saved";
+      message: string;
+      adaptiveAttempt: SkillProfileAttempt;
+    }
+  | {
+      status: "error";
+      message: string;
+      adaptiveAttempt: null;
+    };
 
 function getSubmissionFingerprint(
   attempt: ReturnType<typeof evaluateTrainingAttemptSubmission>,
@@ -21,6 +31,19 @@ function getSubmissionFingerprint(
   return createHash("sha256")
     .update(JSON.stringify(attempt))
     .digest("hex");
+}
+
+function getAdaptiveAttempt(
+  attempt: ReturnType<typeof evaluateTrainingAttemptSubmission>,
+): SkillProfileAttempt | null {
+  return parseSkillProfileAttempt({
+    id: attempt.attemptId,
+    exercise_id: attempt.exerciseId,
+    created_at: new Date().toISOString(),
+    skill_scores: attempt.skillScores,
+    timing_score: attempt.timingScore,
+    plan_component_scores: attempt.planComponentScores,
+  });
 }
 
 export async function saveTrainingAttempt(
@@ -36,6 +59,7 @@ export async function saveTrainingAttempt(
     return {
       status: "error",
       message: "Tu sesión no es válida. Vuelve a iniciar sesión.",
+      adaptiveAttempt: null,
     };
   }
 
@@ -49,6 +73,22 @@ export async function saveTrainingAttempt(
     return {
       status: "error",
       message: "No se pudo validar este intento de entrenamiento.",
+      adaptiveAttempt: null,
+    };
+  }
+
+  const adaptiveAttempt = getAdaptiveAttempt(attempt);
+
+  if (!adaptiveAttempt) {
+    console.error(
+      "Official training attempt could not be normalized for adaptive selection:",
+      attempt.attemptId,
+    );
+
+    return {
+      status: "error",
+      message: "No se pudo validar la evidencia adaptativa de este intento.",
+      adaptiveAttempt: null,
     };
   }
 
@@ -90,6 +130,7 @@ export async function saveTrainingAttempt(
     return {
       status: "saved",
       message: "Intento guardado.",
+      adaptiveAttempt,
     };
   }
 
@@ -99,6 +140,7 @@ export async function saveTrainingAttempt(
     return {
       status: "error",
       message: "No se pudo guardar el intento. Inténtalo de nuevo.",
+      adaptiveAttempt: null,
     };
   }
 
@@ -119,15 +161,15 @@ export async function saveTrainingAttempt(
     return {
       status: "error",
       message: "No se pudo confirmar el guardado del intento.",
+      adaptiveAttempt: null,
     };
   }
 
-  if (
-    existingAttempt?.submission_fingerprint === submissionFingerprint
-  ) {
+  if (existingAttempt?.submission_fingerprint === submissionFingerprint) {
     return {
       status: "saved",
       message: "Intento guardado.",
+      adaptiveAttempt,
     };
   }
 
@@ -139,5 +181,6 @@ export async function saveTrainingAttempt(
   return {
     status: "error",
     message: "Este intento no pudo guardarse de forma segura.",
+    adaptiveAttempt: null,
   };
 }

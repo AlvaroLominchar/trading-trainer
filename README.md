@@ -19,7 +19,7 @@ El objetivo no es reproducir un terminal completo, sino convertir aprendizaje pa
 Último commit confirmado:
 
 ```text
-5044b4f Document wait decision flow
+1335056 Add procedural difficulty
 ```
 
 Ya existen:
@@ -38,7 +38,8 @@ Ya existen:
 - perfil de habilidades;
 - dashboard real y pulido;
 - motor procedural con seeds reproducibles;
-- selector que reduce repetición.
+- selector que reduce repetición;
+- dificultad procedural explícita y visible.
 
 Git y el `PROJECT_SNAPSHOT_<commit>.txt` más reciente gobiernan el estado exacto.
 
@@ -176,21 +177,25 @@ La UI muestra solo la banda, no el score interno. En `/train` la cabecera del ej
 
 `/history` reconstruye la dificultad desde `exercise_id + exercise_version`, por lo que puede mostrarla sin añadir una columna nueva ni una migración.
 
-Esta primera calibración es una heurística pedagógica versionada. Queda preparada para que el siguiente selector adaptativo pueda combinar dificultad, skills débiles y exposición reciente sin convertir la dificultad en una etiqueta fija por arquetipo.
+Esta primera calibración es una heurística pedagógica versionada. El Bloque 15 quedó validado y consolidado en `1335056` con 181/181 tests, lint y build correctos. La dificultad sirve como señal para el selector adaptativo sin convertirse en una etiqueta fija escrita a mano por arquetipo.
 
 No hay migración Supabase en Bloque 15.
 
-## Selector
+## Selector adaptativo — Bloque 16
 
-Actualmente:
+El candidato del Bloque 16 convierte el selector procedural en adaptativo sin IA y sin una nueva migración.
 
-- evita los últimos 64 IDs persistidos o vistos en sesión;
-- evita repetir inmediatamente la familia si hay alternativas;
-- favorece familias menos vistas;
-- intenta no repetir una firma estructural reciente —familia, variante, timeframe y dirección— cuando existe otra seed válida;
-- descarta seeds inválidas.
+La selección v1 combina:
 
-Todavía no selecciona por debilidades del perfil. Eso llegará después de validar catálogo y dificultad.
+- **cobertura**: antes de inferir una debilidad, procura que cada skill tenga al menos dos observaciones en dos escenarios distintos;
+- **refuerzo**: después prioriza debilidad histórica, errores de las tres observaciones más recientes y exposición insuficiente;
+- **dificultad**: fácil con evidencia débil/escasa, intermedia con rendimiento defendible y difícil solo con rendimiento alto y muestra suficiente;
+- **relevancia pedagógica**: la skill objetivo pesa más que acertar exactamente la banda de dificultad cuando ambas señales entran en conflicto;
+- **diversidad**: conserva el límite de 64 IDs recientes, evita repetir familia inmediata, favorece familias menos vistas y evita firmas estructurales recientes cuando existen alternativas.
+
+El foco rota de forma determinista entre las tres prioridades superiores y evita insistir inmediatamente en la skill principal del ejercicio anterior cuando existen alternativas, para que «adaptativo» no signifique repetir mecánicamente una única familia. `entry_timing` dispone de una afinidad pedagógica explícita hacia familias donde esperar/confirmar la entrada tiene especial sentido.
+
+El primer escenario se decide con intentos persistidos. Dentro de una misma sesión, cada guardado exitoso devuelve la evidencia oficial recalculada por servidor y el siguiente ejercicio se selecciona con ese perfil actualizado. El usuario no ve la skill objetivo antes de responder para evitar pistas sobre la solución.
 
 ### Esperar frente a no operar — Bloque 14
 
@@ -346,10 +351,10 @@ Git / snapshot
 
 ## Próximos pasos
 
-1. selección adaptativa por errores/habilidades, dificultad y exposición;
-2. entrenamiento adaptativo real;
-3. reto diario;
-4. datos históricos licenciables;
+1. validar la mezcla del selector adaptativo con uso real;
+2. reto diario y primera capa de progresión/retención;
+3. datos históricos licenciables;
+4. onboarding/landing específicos del producto;
 5. feedback IA sobre scoring determinista.
 
 ## Seguridad y legal

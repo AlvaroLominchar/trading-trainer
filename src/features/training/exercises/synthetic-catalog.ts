@@ -1,5 +1,6 @@
-
 import { DEMO_EXERCISES, getDemoExercise } from "./demo-exercises";
+import type { AdaptiveSelectionPreferences } from "../adaptive-selection";
+import { assessExerciseDifficulty, type ExerciseDifficulty } from "../difficulty";
 import { SYNTHETIC_EXERCISE_ARCHETYPES } from "../types";
 import type {
   Candle,
@@ -2616,6 +2617,163 @@ export function resolveTrainingExercise(
   return generateV2SyntheticExercise(descriptor.archetype, descriptor.seed);
 }
 
+const ENTRY_TIMING_ARCHETYPE_AFFINITY: Record<
+  SyntheticExerciseArchetype,
+  number
+> = {
+  "trend-continuation": 0.68,
+  "range-midpoint": 0.5,
+  "false-breakout": 0.78,
+  "breakout-acceptance": 0.95,
+  "range-extreme": 0.62,
+  compression: 1,
+  "exhaustion-reversal": 0.82,
+  "level-retest": 0.95,
+};
+
+function getAdaptiveSkillAffinity(
+  exercise: Exercise,
+  targetSkill: TrainingSkill,
+) {
+  const archetype = exercise.source.generation?.archetype;
+
+  if (targetSkill === "entry_timing") {
+    return archetype ? ENTRY_TIMING_ARCHETYPE_AFFINITY[archetype] : 0;
+  }
+
+  const weight =
+    exercise.skills.find((item) => item.skill === targetSkill)?.weight ?? 0;
+
+  return clamp(weight / 0.55, 0, 1);
+}
+
+function getDifficultyAffinity(
+  actual: ExerciseDifficulty,
+  target: ExerciseDifficulty,
+) {
+  if (actual === target) {
+    return 1;
+  }
+
+  if (
+    (actual === "easy" && target === "medium") ||
+    (actual === "medium" && target !== "medium") ||
+    (actual === "hard" && target === "medium")
+  ) {
+    return 0.45;
+  }
+
+  return 0;
+}
+
+type AdaptiveCandidate = {
+  exercise: Exercise;
+  score: number;
+};
+
+function selectAdaptiveSyntheticExercise({
+  recentExerciseIds,
+  currentExerciseId,
+  selectionSeed,
+  preferences,
+}: {
+  recentExerciseIds: readonly string[];
+  currentExerciseId?: string | null;
+  selectionSeed: number;
+  preferences: AdaptiveSelectionPreferences;
+}) {
+  const recentSet = new Set(recentExerciseIds);
+  const recentStructuralSignatures =
+    getRecentStructuralSignatures(recentExerciseIds);
+  const currentDescriptor = currentExerciseId
+    ? parseSyntheticExerciseId(currentExerciseId)
+    : null;
+  const archetypeCounts = countRecentArchetypes(recentExerciseIds);
+  const maximumArchetypeCount = Math.max(
+    1,
+    ...SYNTHETIC_ARCHETYPES.map(
+      (archetype) => archetypeCounts.get(archetype) ?? 0,
+    ),
+  );
+  const random = createDeterministicRandom(
+    selectionSeed,
+    `synthetic-adaptive-selector:v${preferences.version}`,
+  );
+  const primaryArchetypes = SYNTHETIC_ARCHETYPES.filter(
+    (archetype) => archetype !== currentDescriptor?.archetype,
+  );
+  const archetypes =
+    primaryArchetypes.length > 0
+      ? primaryArchetypes
+      : [...SYNTHETIC_ARCHETYPES];
+  const candidates: AdaptiveCandidate[] = [];
+  let structuralFallback: AdaptiveCandidate | null = null;
+
+  for (const archetype of archetypes) {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const seed = 1 + Math.floor(random() * SYNTHETIC_MAX_SEED);
+      const exerciseId = createSyntheticExerciseId(archetype, seed);
+
+      if (exerciseId === currentExerciseId || recentSet.has(exerciseId)) {
+        continue;
+      }
+
+      try {
+        const exercise = generateV2SyntheticExercise(archetype, seed);
+        const difficulty = assessExerciseDifficulty(exercise).level;
+        const skillAffinity = getAdaptiveSkillAffinity(
+          exercise,
+          preferences.targetSkill,
+        );
+        const difficultyAffinity = getDifficultyAffinity(
+          difficulty,
+          preferences.targetDifficulty,
+        );
+        const recentCount = archetypeCounts.get(archetype) ?? 0;
+        const exposureAffinity = clamp(
+          1 - recentCount / maximumArchetypeCount,
+          0,
+          1,
+        );
+        const structuralSignature = getSyntheticStructuralSignature(
+          archetype,
+          seed,
+        );
+        const structurallyNovel =
+          !recentStructuralSignatures.has(structuralSignature);
+        const score =
+          skillAffinity * 52 +
+          difficultyAffinity * 26 +
+          exposureAffinity * 14 +
+          (structurallyNovel ? 8 : 0) +
+          random() * 0.001;
+        const candidate = { exercise, score };
+
+        if (structurallyNovel) {
+          candidates.push(candidate);
+        } else if (!structuralFallback || score > structuralFallback.score) {
+          structuralFallback = candidate;
+        }
+      } catch {
+        // Una seed inválida se descarta sin degradar la selección adaptativa.
+      }
+    }
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((left, right) => right.score - left.score);
+    return candidates[0].exercise;
+  }
+
+  if (structuralFallback) {
+    return structuralFallback.exercise;
+  }
+
+  throw new Error(
+    "No se pudo seleccionar un escenario sintético adaptativo válido y no repetido.",
+  );
+}
+
 function countRecentArchetypes(recentExerciseIds: readonly string[]) {
   const counts = new Map<SyntheticExerciseArchetype, number>(
     SYNTHETIC_ARCHETYPES.map((archetype) => [archetype, 0]),
@@ -2638,11 +2796,21 @@ export function selectSyntheticExercise(options: {
   recentExerciseIds?: readonly string[];
   currentExerciseId?: string | null;
   selectionSeed: number;
+  adaptivePreferences?: AdaptiveSelectionPreferences | null;
 }): Exercise {
   const recentExerciseIds = (options.recentExerciseIds ?? []).slice(
     0,
     SYNTHETIC_RECENT_EXERCISE_LIMIT,
   );
+  if (options.adaptivePreferences) {
+    return selectAdaptiveSyntheticExercise({
+      recentExerciseIds,
+      currentExerciseId: options.currentExerciseId,
+      selectionSeed: options.selectionSeed,
+      preferences: options.adaptivePreferences,
+    });
+  }
+
   const recentSet = new Set(recentExerciseIds);
   const recentStructuralSignatures = getRecentStructuralSignatures(recentExerciseIds);
   const currentDescriptor = options.currentExerciseId

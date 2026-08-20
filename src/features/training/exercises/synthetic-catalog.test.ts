@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { assessExerciseDifficulty } from "../difficulty";
 import { scoreExerciseAttempt } from "../scoring";
 import {
   isTradePlanGeometryValid,
@@ -442,6 +443,97 @@ describe("synthetic exercise selector", () => {
       expect(validateSyntheticExercise(next).valid).toBe(true);
       expect(recentExerciseIds).not.toContain(next.id);
 
+      recentExerciseIds = [next.id, ...recentExerciseIds].slice(
+        0,
+        SYNTHETIC_RECENT_EXERCISE_LIMIT,
+      );
+      currentExerciseId = next.id;
+    }
+  });
+
+  it("dirige la selección adaptativa hacia la skill objetivo", () => {
+    const next = selectSyntheticExercise({
+      recentExerciseIds: [],
+      selectionSeed: 91234,
+      adaptivePreferences: {
+        version: 1,
+        targetSkill: "volatility_reading",
+        targetDifficulty: "medium",
+        strategy: "reinforcement",
+      },
+    });
+
+    expect(next.source.generation?.archetype).toBe("compression");
+    expect(next.skills.some((skill) => skill.skill === "volatility_reading")).toBe(true);
+  });
+
+  it("prioriza relevancia pedagógica sobre una banda imposible para la skill", () => {
+    const next = selectSyntheticExercise({
+      recentExerciseIds: [],
+      selectionSeed: 66221,
+      adaptivePreferences: {
+        version: 1,
+        targetSkill: "volatility_reading",
+        targetDifficulty: "medium",
+        strategy: "reinforcement",
+      },
+    });
+
+    expect(next.source.generation?.archetype).toBe("compression");
+    expect(assessExerciseDifficulty(next).level).toBe("easy");
+  });
+
+  it("busca la banda de dificultad objetivo cuando varias familias entrenan la skill", () => {
+    for (const targetDifficulty of ["easy", "medium", "hard"] as const) {
+      const next = selectSyntheticExercise({
+        recentExerciseIds: [],
+        selectionSeed: 44_000 + targetDifficulty.length,
+        adaptivePreferences: {
+          version: 1,
+          targetSkill: "context_reading",
+          targetDifficulty,
+          strategy: "reinforcement",
+        },
+      });
+
+      expect(next.skills.some((skill) => skill.skill === "context_reading")).toBe(true);
+      expect(assessExerciseDifficulty(next).level).toBe(targetDifficulty);
+    }
+  });
+
+  it("mantiene anti-repetición de ID, familia inmediata y firma con selección adaptativa", () => {
+    let currentExerciseId: string | null = null;
+    let recentExerciseIds: string[] = [];
+    let recentSignatures: string[] = [];
+
+    for (let index = 0; index < 32; index += 1) {
+      const next = selectSyntheticExercise({
+        recentExerciseIds,
+        currentExerciseId,
+        selectionSeed: 120_000 + index,
+        adaptivePreferences: {
+          version: 1,
+          targetSkill: index % 2 === 0 ? "context_reading" : "entry_timing",
+          targetDifficulty: index % 3 === 0 ? "hard" : "medium",
+          strategy: "reinforcement",
+        },
+      });
+      const generation = next.source.generation;
+      const currentDescriptor = currentExerciseId
+        ? parseSyntheticExerciseId(currentExerciseId)
+        : null;
+      const signature = [
+        generation?.archetype,
+        generation?.variant,
+        next.timeframe,
+        generation?.setupDirection,
+      ].join(":");
+
+      expect(recentExerciseIds).not.toContain(next.id);
+      expect(generation?.archetype).not.toBe(currentDescriptor?.archetype);
+      expect(recentSignatures.slice(0, 32)).not.toContain(signature);
+
+      recentSignatures = [signature, ...recentSignatures].slice(0, 40);
       recentExerciseIds = [next.id, ...recentExerciseIds].slice(
         0,
         SYNTHETIC_RECENT_EXERCISE_LIMIT,

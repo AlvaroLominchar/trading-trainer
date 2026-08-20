@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { saveTrainingAttempt } from "@/app/(app)/train/actions";
+import { getAdaptiveSelectionPreferences } from "@/features/training/adaptive-selection";
 import { MarketPreview } from "@/components/training/market-preview";
 import {
   type TrainingManagementActionSubmission,
@@ -33,6 +34,11 @@ import {
   scoreManagementSession,
 } from "@/features/training/management";
 import { scoreExerciseAttempt } from "@/features/training/scoring";
+import {
+  buildSkillProfile,
+  SKILL_PROFILE_ATTEMPT_LIMIT,
+  type SkillProfileAttempt,
+} from "@/features/training/skill-profile";
 import { createNeutralTradePlan } from "@/features/training/trade-plan-defaults";
 import {
   calculateRewardRisk,
@@ -295,9 +301,11 @@ function getOutcomeLabel(
 }
 
 export function TrainingSession({
+  initialAdaptiveAttempts,
   initialExercise,
   initialRecentExerciseIds,
 }: {
+  initialAdaptiveAttempts: readonly SkillProfileAttempt[];
   initialExercise: Exercise;
   initialRecentExerciseIds: readonly string[];
 }) {
@@ -310,6 +318,9 @@ export function TrainingSession({
         SYNTHETIC_RECENT_EXERCISE_LIMIT,
       ),
   );
+  const [adaptiveAttempts, setAdaptiveAttempts] = useState<
+    readonly SkillProfileAttempt[]
+  >(() => initialAdaptiveAttempts.slice(0, SKILL_PROFILE_ATTEMPT_LIMIT));
   const [decision, setDecision] = useState<TrainingDecision | null>(null);
   const [tradePlan, setTradePlan] = useState<TradePlan | null>(null);
   const [confidence, setConfidence] = useState(70);
@@ -420,6 +431,14 @@ export function TrainingSession({
 
           if (response.status === "saved") {
             savedAttemptIdRef.current = attemptId;
+            setAdaptiveAttempts((current) =>
+              [
+                response.adaptiveAttempt,
+                ...current.filter(
+                  (attempt) => attempt.id !== response.adaptiveAttempt.id,
+                ),
+              ].slice(0, SKILL_PROFILE_ATTEMPT_LIMIT),
+            );
             setSaveStatus("saved");
             return;
           }
@@ -764,14 +783,21 @@ export function TrainingSession({
 
   function handleNextExercise() {
     clearTimer();
+    const selectionSeed = createSyntheticSelectionSeed([
+      exercise.id,
+      String(exerciseNumber),
+      ...recentExerciseIds,
+    ]);
+    const adaptivePreferences = getAdaptiveSelectionPreferences(
+      buildSkillProfile(adaptiveAttempts),
+      selectionSeed,
+      { avoidSkill: exercise.skills[0]?.skill ?? null },
+    );
     const nextExercise = selectSyntheticExercise({
       recentExerciseIds,
       currentExerciseId: exercise.id,
-      selectionSeed: createSyntheticSelectionSeed([
-        exercise.id,
-        String(exerciseNumber),
-        ...recentExerciseIds,
-      ]),
+      selectionSeed,
+      adaptivePreferences,
     });
 
     setExercise(nextExercise);

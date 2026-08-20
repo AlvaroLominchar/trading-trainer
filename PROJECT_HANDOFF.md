@@ -6,9 +6,9 @@
 >
 > **Contexto estable de negocio:** `PRODUCT_CONTEXT.md`.
 >
-> **Último commit confirmado:** `5044b4f` — `Document wait decision flow`.
+> **Último commit confirmado:** `1335056` — `Add procedural difficulty`.
 >
-> **Estado de este documento:** Bloque 14 cerrado y consolidado. Bloque 15 — dificultad procedural explícita— preparado como candidato sin migración y pendiente de validación del usuario.
+> **Estado de este documento:** Bloque 15 cerrado y consolidado. Bloque 16 — selector adaptativo v1— preparado como candidato sin migración y pendiente de validación del usuario.
 
 ---
 
@@ -80,7 +80,7 @@ No reconstruir estas piezas sin una razón técnica explícita.
 
 ---
 
-## 3. Historial funcional confirmado hasta `5044b4f`
+## 3. Historial funcional confirmado hasta `1335056`
 
 Commits principales:
 
@@ -101,9 +101,10 @@ d0e16a4 Add training history
 d1b136d Expand procedural training catalog
 2d755ec Add wait decision and timing evaluation
 5044b4f Document wait decision flow
+1335056 Add procedural difficulty
 ```
 
-El snapshot `PROJECT_SNAPSHOT_5044b4f.txt` o uno posterior gobierna el estado exacto.
+El snapshot `PROJECT_SNAPSHOT_1335056.txt` o uno posterior gobierna el estado exacto.
 
 El Bloque 12 quedó validado y consolidado en `91280a9`. El Bloque 13 quedó validado y consolidado en `d1b136d` con 8 familias procedurales, 10 habilidades, radar de skills, explicaciones de Lectura/Plan/Gestión, selector anti-repetición estructural y los pulidos finales de dashboard/perfil. La validación final del bloque fue 159/159 tests, lint y build correctos.
 
@@ -414,7 +415,7 @@ El resultado continúa mostrando solo Lectura / Plan / Gestión. Timing permanec
 
 ## 11. Bloque 15 — dificultad procedural explícita
 
-**Estado:** candidato pendiente de validación. Base confirmada: `5044b4f`.
+**Estado:** cerrado, validado y consolidado en `1335056`. La validación final fue 181/181 tests, lint y build correctos.
 
 Objetivo: clasificar la dificultad del problema que el usuario ve **antes de revelar futuro**, sin convertirla en una etiqueta arbitraria por familia y sin tocar persistencia.
 
@@ -450,7 +451,33 @@ No hay migración Supabase en este bloque.
 
 ---
 
-## 12. Datos reales futuros
+## 12. Bloque 16 — selector adaptativo v1
+
+**Estado:** candidato preparado sobre `1335056`, sin migración Supabase.
+
+Objetivo: elegir el siguiente escenario según la evidencia real del usuario sin abandonar diversidad, dificultad ni anti-repetición.
+
+Arquitectura v1:
+
+- el servidor carga hasta 64 intentos recientes para exposición y hasta 60 intentos válidos para perfil de skills;
+- reutiliza `buildSkillProfile()` como fuente de evidencia, incluida la nota oficial de Timing persistida en Bloque 14;
+- mientras alguna skill no tenga al menos 2 observaciones en 2 escenarios distintos, el selector prioriza **cobertura** antes de declarar debilidades prematuras;
+- con cobertura mínima, entra en **refuerzo**: combina debilidad histórica, las tres observaciones más recientes y falta de exposición;
+- el foco se rota de forma determinista entre las tres prioridades superiores y evita insistir inmediatamente en la skill principal del ejercicio anterior cuando existen alternativas;
+- la dificultad objetivo se ajusta de forma conservadora: fácil para evidencia débil o escasa, intermedia para rendimiento defendible y difícil solo con rendimiento alto y evidencia suficiente;
+- la skill objetivo pesa más que la dificultad. Si una familia que entrena una skill específica no dispone de la banda deseada, se elige la dificultad más cercana sin sacrificar la relevancia pedagógica;
+- el selector conserva la exclusión del ID reciente, evita repetir la familia inmediata y mantiene la firma estructural —familia + variante + timeframe + dirección— como restricción de novedad;
+- exposición reciente de familias sigue formando parte del ranking para que adaptación no signifique monotonía;
+- `entry_timing` usa una afinidad explícita v1 hacia compresión, aceptación de ruptura, retests, falsas rupturas y agotamiento, porque Timing no forma parte de `Exercise.skills` de Lectura;
+- no se muestra al usuario la skill objetivo antes de decidir para no revelar indirectamente la familia o la respuesta esperada.
+
+Después de cada guardado exitoso, `saveTrainingAttempt()` devuelve al cliente únicamente la evidencia oficial necesaria para actualizar el perfil adaptativo de la sesión. El próximo escenario se elige con esa evidencia ya recalculada por servidor; el navegador no inventa scores oficiales.
+
+No se persiste un «nivel adaptativo» ni se añade ninguna tabla. La selección sigue siendo determinista, explicable y versionable.
+
+---
+
+## 13. Datos reales futuros
 
 No crear un segundo sistema para históricos:
 
@@ -473,7 +500,7 @@ Los históricos reales solo deben incorporarse con derechos/licencias adecuados.
 
 ---
 
-## 13. IA futura
+## 14. IA futura
 
 Puede explorarse para explicar scoring, resumir sesiones, detectar patrones y ayudar al QA.
 
@@ -483,7 +510,7 @@ No asignar todavía capacidades a Free/Plus/Premium.
 
 ---
 
-## 14. Supabase y facturación
+## 15. Supabase y facturación
 
 Existe proyecto Supabase independiente con Auth, Google OAuth, RLS, perfiles, suscripciones y `training_attempts`.
 
@@ -503,7 +530,7 @@ Nunca solicitar ni mostrar secretos o `.env.local`.
 
 ---
 
-## 15. Rutas privadas
+## 16. Rutas privadas
 
 ```text
 /dashboard
@@ -515,7 +542,7 @@ Nunca solicitar ni mostrar secretos o `.env.local`.
 
 ---
 
-## 16. Calidad visual
+## 17. Calidad visual
 
 Decisiones validadas:
 
@@ -529,7 +556,7 @@ Decisiones validadas:
 
 ---
 
-## 17. Validación obligatoria
+## 18. Validación obligatoria
 
 ```powershell
 npm test; npm run lint; npm run build; git --no-pager diff --check; git status
@@ -543,17 +570,17 @@ git add ...; git commit -m "Mensaje descriptivo"; git push origin main; git stat
 
 ---
 
-## 18. Siguiente evolución recomendada
+## 19. Siguiente evolución recomendada
 
-1. selección por skills débiles, errores recientes, dificultad y exposición;
-2. entrenamiento adaptativo real;
-3. reto diario;
-4. investigación de datos históricos licenciables;
+1. validar el selector adaptativo con uso real y revisar su mezcla de foco/diversidad;
+2. reto diario y primera capa de progresión/retención;
+3. investigación de datos históricos licenciables;
+4. onboarding/landing específicos del producto;
 5. feedback IA sobre scoring determinista.
 
 ---
 
-## 19. Orden de autoridad
+## 20. Orden de autoridad
 
 ```text
 Git / snapshot más reciente
@@ -569,7 +596,7 @@ memoria de conversación
 
 ---
 
-## 20. Decisiones abiertas
+## 21. Decisiones abiertas
 
 - marca y dominio;
 - idioma principal definitivo;
