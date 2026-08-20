@@ -21,14 +21,8 @@ export const metadata: Metadata = {
     "Entrena toma de decisiones con escenarios sintéticos reproducibles y feedback explicable.",
 };
 
-const TRAINING_SELECTION_SELECT = [
-  "id",
-  "exercise_id",
-  "skill_scores",
-  "plan_component_scores",
-  "timing_score",
-  "created_at",
-].join(", ");
+const TRAINING_SELECTION_SELECT =
+  "id, exercise_id, skill_scores, plan_component_scores, timing_score, created_at";
 
 export default async function TrainPage() {
   const supabase = await createClient();
