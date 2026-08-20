@@ -22,7 +22,7 @@ El objetivo no es reproducir un terminal completo, sino convertir aprendizaje pa
 
 ```text
 
-e9a6e81 Add adaptive training selection
+750ad20 Fix adaptive training query typing
 
 ```
 
@@ -270,7 +270,7 @@ El foco rota de forma determinista entre las tres prioridades superiores y evita
 
 El primer escenario se decide con intentos persistidos. Dentro de una misma sesión, cada guardado exitoso devuelve la evidencia oficial recalculada por servidor y el siguiente ejercicio se selecciona con ese perfil actualizado. El usuario no ve la skill objetivo antes de responder para evitar pistas sobre la solución.
 
-El Bloque 16 quedó cerrado y consolidado en `e9a6e81`. La validación final confirmó **192/192 tests**, lint, build y `git diff --check` correctos, además de revisión funcional en `/train`, `/skills` y `/history`. La evidencia adaptativa devuelta tras guardar se normaliza en servidor antes de llegar al cliente; no se aceptan scores oficiales inventados por el navegador.
+El Bloque 16 quedó cerrado funcionalmente en `750ad20`. La implementación principal entró en `e9a6e81`, la documentación inicial en `fe80a2b` y el último ajuste corrigió el tipado de la consulta adaptativa de Supabase sin alterar comportamiento. La validación final confirmó **192/192 tests**, lint, build y `git diff --check` correctos, además de revisión funcional en `/train`, `/skills` y `/history`. La evidencia adaptativa devuelta tras guardar se normaliza en servidor antes de llegar al cliente; no se aceptan scores oficiales inventados por el navegador.
 
 ### Esperar frente a no operar — Bloque 14
 

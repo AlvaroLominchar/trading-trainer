@@ -12,7 +12,7 @@
 
 >
 
-> **Último commit funcional confirmado:** `e9a6e81` — `Add adaptive training selection`.
+> **Último commit funcional confirmado:** `750ad20` — `Fix adaptive training query typing`.
 
 >
 
@@ -118,7 +118,7 @@ No reconstruir estas piezas sin una razón técnica explícita.
 
 ---
 
-## 3. Historial funcional confirmado hasta `e9a6e81`
+## 3. Historial funcional confirmado hasta `750ad20`
 
 Commits principales:
 
@@ -160,13 +160,17 @@ d1b136d Expand procedural training catalog
 
 e9a6e81 Add adaptive training selection
 
+fe80a2b Document adaptive training selection
+
+750ad20 Fix adaptive training query typing
+
 ```
 
 El `PROJECT_SNAPSHOT_<commit>.txt` cuyo nombre contenga el commit más reciente disponible gobierna el estado exacto.
 
 El Bloque 12 quedó validado y consolidado en `91280a9`. El Bloque 13 quedó validado y consolidado en `d1b136d` con 8 familias procedurales, 10 habilidades, radar de skills, explicaciones de Lectura/Plan/Gestión, selector anti-repetición estructural y los pulidos finales de dashboard/perfil. La validación final del bloque fue 159/159 tests, lint y build correctos.
 
-El Bloque 14 quedó validado funcionalmente con 174/174 tests y la migración de `wait_count` / `timing_score` aplicada. El Bloque 15 quedó consolidado en `1335056` con 181/181 tests. El Bloque 16 quedó consolidado en `e9a6e81` con **192/192 tests**, lint, build y `git diff --check` correctos, además de validación funcional manual del flujo adaptativo.
+El Bloque 14 quedó validado funcionalmente con 174/174 tests y la migración de `wait_count` / `timing_score` aplicada. El Bloque 15 quedó consolidado en `1335056` con 181/181 tests. El Bloque 16 se implementó en `e9a6e81`, se documentó inicialmente en `fe80a2b` y quedó cerrado funcionalmente en `750ad20` tras corregir el tipado de la consulta adaptativa de Supabase. La validación final fue **192/192 tests**, lint, build y `git diff --check` correctos, además de validación funcional manual del flujo adaptativo.
 
 ---
 
@@ -652,7 +656,7 @@ No hay migración Supabase en este bloque.
 
 ## 12. Bloque 16 — selector adaptativo v1
 
-**Estado:** cerrado, validado y consolidado en `e9a6e81`, sin migración Supabase. Validación final: **192/192 tests**, lint, build y `git diff --check` correctos, más revisión funcional manual.
+**Estado:** cerrado y validado funcionalmente en `750ad20`, sin migración Supabase. Implementación principal: `e9a6e81`. Documentación intermedia: `fe80a2b`. Fix final de tipado Supabase: `750ad20`. Validación final: **192/192 tests**, lint, build y `git diff --check` correctos, más revisión funcional manual.
 
 Objetivo: elegir el siguiente escenario según la evidencia real del usuario sin abandonar diversidad, dificultad ni anti-repetición.
 
@@ -683,6 +687,8 @@ Arquitectura v1:
 Después de cada guardado exitoso, `saveTrainingAttempt()` devuelve al cliente únicamente la evidencia oficial necesaria para actualizar el perfil adaptativo de la sesión. El próximo escenario se elige con esa evidencia ya recalculada por servidor; el navegador no inventa scores oficiales.
 
 La frontera servidor → cliente normaliza esa evidencia con `parseSkillProfileAttempt()` antes de devolverla. Esto evita casts inseguros y reutiliza la misma validación de skills, scores, pesos y Timing que se aplica a los intentos leídos desde persistencia.
+
+Durante el cierre se detectó además un error de type-check en `/train`: el listado de columnas de Supabase se construía con `.join(", ")`, perdiendo el literal necesario para que el cliente tipado infiriera `exercise_id`. El commit `750ad20` deja `TRAINING_SELECTION_SELECT` como literal estático. El cambio no altera la consulta ni el comportamiento en ejecución; únicamente preserva la inferencia TypeScript.
 
 No se persiste un «nivel adaptativo» ni se añade ninguna tabla. La selección sigue siendo determinista, explicable y versionable.
 
@@ -818,7 +824,11 @@ Lint: correcto
 Build: correcto
 git diff --check: correcto
 Validación funcional: correcta
-Commit funcional: e9a6e81 Add adaptive training selection
+Commit funcional final: 750ad20 Fix adaptive training query typing
+
+fe80a2b Document adaptive training selection
+
+750ad20 Fix adaptive training query typing
 
 ```
 
