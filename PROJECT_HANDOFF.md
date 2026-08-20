@@ -1,4 +1,3 @@
-
 # PROJECT_HANDOFF — trading-trainer
 
 > Documento técnico de continuidad del producto.
@@ -7,9 +6,9 @@
 >
 > **Contexto estable de negocio:** `PRODUCT_CONTEXT.md`.
 >
-> **Base confirmada previa al Bloque 14:** `d1b136d` — `Expand procedural training catalog`.
+> **Último commit confirmado:** `5044b4f` — `Document wait decision flow`.
 >
-> **Estado de este documento:** Bloque 14 — `Esperar` + Timing real— implementado y validado en el entorno del usuario: 174/174 tests, lint y build correctos; migración aplicada en Supabase y flujo probado en web. Git y el snapshot más reciente gobiernan el hash consolidado actual.
+> **Estado de este documento:** Bloque 14 cerrado y consolidado. Bloque 15 — dificultad procedural explícita— preparado como candidato sin migración y pendiente de validación del usuario.
 
 ---
 
@@ -81,7 +80,7 @@ No reconstruir estas piezas sin una razón técnica explícita.
 
 ---
 
-## 3. Historial funcional confirmado hasta `d1b136d`
+## 3. Historial funcional confirmado hasta `5044b4f`
 
 Commits principales:
 
@@ -100,9 +99,11 @@ d0e16a4 Add training history
 60e73bf Add polished training dashboard
 91280a9 Add procedural synthetic training engine
 d1b136d Expand procedural training catalog
+2d755ec Add wait decision and timing evaluation
+5044b4f Document wait decision flow
 ```
 
-El snapshot `PROJECT_SNAPSHOT_d1b136d.txt` o uno posterior gobierna el estado exacto.
+El snapshot `PROJECT_SNAPSHOT_5044b4f.txt` o uno posterior gobierna el estado exacto.
 
 El Bloque 12 quedó validado y consolidado en `91280a9`. El Bloque 13 quedó validado y consolidado en `d1b136d` con 8 familias procedurales, 10 habilidades, radar de skills, explicaciones de Lectura/Plan/Gestión, selector anti-repetición estructural y los pulidos finales de dashboard/perfil. La validación final del bloque fue 159/159 tests, lint y build correctos.
 
@@ -210,6 +211,7 @@ Nunca confiar en scores calculados por el navegador.
 
 - Hasta 30 intentos recientes.
 - Más reciente primero.
+- Muestra la dificultad procedural reconstruida del escenario cuando puede resolverse el ejercicio.
 - Decisión y outcome separados.
 - Lectura / Plan / Gestión independientes.
 - Detalle expandible.
@@ -409,7 +411,46 @@ El resultado continúa mostrando solo Lectura / Plan / Gestión. Timing permanec
 
 ---
 
-## 11. Datos reales futuros
+
+## 11. Bloque 15 — dificultad procedural explícita
+
+**Estado:** candidato pendiente de validación. Base confirmada: `5044b4f`.
+
+Objetivo: clasificar la dificultad del problema que el usuario ve **antes de revelar futuro**, sin convertirla en una etiqueta arbitraria por familia y sin tocar persistencia.
+
+La dificultad usa una rúbrica determinista y versionada (`v1`) con tres señales:
+
+- **Ambigüedad de decisión (55%)**: distancia entre la mejor alternativa de Lectura y la segunda mejor según las rúbricas existentes. Menor margen = más difícil.
+- **Complejidad estructural (30%)**: recorrido acumulado de cierres frente al rango visible. Más rotaciones dentro del mismo espacio = lectura más exigente.
+- **Ruido de microestructura (15%)**: proporción media de mechas sobre el rango de las velas visibles.
+
+Bandas v1:
+
+```text
+0–37   → Fácil
+38–65  → Intermedia
+66–100 → Difícil
+```
+
+Reglas:
+
+- utiliza únicamente velas hasta `decisionIndex` y rúbricas disponibles en ese punto;
+- no usa el futuro revelado, outcome ni resultado económico;
+- no modifica Lectura, Plan, Gestión ni Timing;
+- no se persiste todavía en Supabase;
+- el nivel se recalcula de forma determinista desde el `Exercise`;
+- la dificultad del escenario se fija respecto al punto inicial: pulsar **Esperar** no reetiqueta retroactivamente el ejercicio;
+- `/train` muestra una única pill neutral `Dificultad · Fácil | Intermedia | Difícil`; se eliminan metadatos redundantes como `Activo oculto`, timeframe duplicado, número de sesión y el aviso superior de datos sintéticos para dar prioridad al gráfico y la decisión;
+- el score interno 0–100 no se muestra al usuario; queda preparado para el selector adaptativo posterior;
+- `/history` reconstruye el ejercicio desde `exercise_id + exercise_version` y muestra la banda de dificultad sin persistir una nueva columna.
+
+La clasificación es una heurística pedagógica versionada, no una afirmación de dificultad universal. Si el corpus cambia, una futura `v2` deberá introducirse explícitamente en vez de alterar silenciosamente esta calibración.
+
+No hay migración Supabase en este bloque.
+
+---
+
+## 12. Datos reales futuros
 
 No crear un segundo sistema para históricos:
 
@@ -432,7 +473,7 @@ Los históricos reales solo deben incorporarse con derechos/licencias adecuados.
 
 ---
 
-## 12. IA futura
+## 13. IA futura
 
 Puede explorarse para explicar scoring, resumir sesiones, detectar patrones y ayudar al QA.
 
@@ -442,7 +483,7 @@ No asignar todavía capacidades a Free/Plus/Premium.
 
 ---
 
-## 13. Supabase y facturación
+## 14. Supabase y facturación
 
 Existe proyecto Supabase independiente con Auth, Google OAuth, RLS, perfiles, suscripciones y `training_attempts`.
 
@@ -462,7 +503,7 @@ Nunca solicitar ni mostrar secretos o `.env.local`.
 
 ---
 
-## 14. Rutas privadas
+## 15. Rutas privadas
 
 ```text
 /dashboard
@@ -474,7 +515,7 @@ Nunca solicitar ni mostrar secretos o `.env.local`.
 
 ---
 
-## 15. Calidad visual
+## 16. Calidad visual
 
 Decisiones validadas:
 
@@ -488,7 +529,7 @@ Decisiones validadas:
 
 ---
 
-## 16. Validación obligatoria
+## 17. Validación obligatoria
 
 ```powershell
 npm test; npm run lint; npm run build; git --no-pager diff --check; git status
@@ -502,18 +543,17 @@ git add ...; git commit -m "Mensaje descriptivo"; git push origin main; git stat
 
 ---
 
-## 17. Siguiente evolución recomendada
+## 18. Siguiente evolución recomendada
 
-1. dificultad procedural explícita;
-2. selección por skills débiles, errores recientes, dificultad y exposición;
-3. entrenamiento adaptativo real;
-4. reto diario;
-5. investigación de datos históricos licenciables;
-6. feedback IA sobre scoring determinista.
+1. selección por skills débiles, errores recientes, dificultad y exposición;
+2. entrenamiento adaptativo real;
+3. reto diario;
+4. investigación de datos históricos licenciables;
+5. feedback IA sobre scoring determinista.
 
 ---
 
-## 18. Orden de autoridad
+## 19. Orden de autoridad
 
 ```text
 Git / snapshot más reciente
@@ -529,7 +569,7 @@ memoria de conversación
 
 ---
 
-## 19. Decisiones abiertas
+## 20. Decisiones abiertas
 
 - marca y dominio;
 - idioma principal definitivo;

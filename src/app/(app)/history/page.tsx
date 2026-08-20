@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -18,6 +17,7 @@ export const metadata: Metadata = {
 const HISTORY_SELECT = [
   "id",
   "exercise_id",
+  "exercise_version",
   "exercise_title",
   "timeframe",
   "decision",

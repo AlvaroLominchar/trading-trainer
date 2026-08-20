@@ -19,7 +19,6 @@ type MarketPreviewProps = {
   revealCount: number;
   revealedCount: number;
   isRevealing: boolean;
-  sourceLabel: string;
   timeframe: ExerciseTimeframe;
   tradePlan?: TradePlan | null;
   tradePlanDecision?: DirectionalDecision | null;
@@ -111,7 +110,6 @@ export function MarketPreview({
   revealCount,
   revealedCount,
   isRevealing,
-  sourceLabel,
   timeframe,
   tradePlan = null,
   tradePlanDecision = null,
@@ -267,10 +265,6 @@ export function MarketPreview({
         <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft">
           {topStatus}
         </span>
-      </div>
-
-      <div className="absolute right-4 top-4 z-10 rounded-lg border border-app-border-strong bg-app-page-soft/95 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-app-text-soft backdrop-blur">
-        {sourceLabel}
       </div>
 
       <svg

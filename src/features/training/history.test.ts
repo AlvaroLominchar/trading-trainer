@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -14,6 +13,7 @@ function getBaseRow() {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     exercise_id: "trend-continuation-001",
+    exercise_version: 1,
     exercise_title: "Continuación bajista",
     timeframe: "15m",
     decision: "short",
@@ -82,6 +82,7 @@ describe("parseTrainingHistoryAttempt", () => {
     const result = parseTrainingHistoryAttempt(getBaseRow());
 
     expect(result?.exerciseId).toBe("trend-continuation-001");
+    expect(result?.exerciseVersion).toBe(1);
     expect(result?.decision).toBe("short");
     expect(result?.tradePlan?.stop).toBe(87.2);
     expect(result?.skillScores).toHaveLength(2);
@@ -139,6 +140,13 @@ describe("parseTrainingHistoryAttempt", () => {
       parseTrainingHistoryAttempt({
         ...getBaseRow(),
         decision: "no_trade",
+      }),
+    ).toBeNull();
+
+    expect(
+      parseTrainingHistoryAttempt({
+        ...getBaseRow(),
+        exercise_version: 0,
       }),
     ).toBeNull();
 

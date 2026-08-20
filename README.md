@@ -1,4 +1,3 @@
-
 # Trading Trainer
 
 Nombre técnico provisional de una plataforma SaaS para entrenar toma de decisiones de trading mediante escenarios sintéticos o históricos controlados.
@@ -20,7 +19,7 @@ El objetivo no es reproducir un terminal completo, sino convertir aprendizaje pa
 Último commit confirmado:
 
 ```text
-d1b136d Expand procedural training catalog
+5044b4f Document wait decision flow
 ```
 
 Ya existen:
@@ -154,6 +153,33 @@ Las tarjetas de Lectura / Plan / Gestión muestran debajo del score únicamente 
 
 Las explicaciones ya no repiten scores parciales como `0/100`: la nota está en las métricas superiores y **Por qué** se centra en el motivo pedagógico. Lectura / Plan / Gestión se distinguen mediante pills luminosas neutras. Si el usuario elige `No operar`, las cards de Plan y Gestión muestran `No operaste` y la explicación deja claro por qué no aplican. Esta capa es determinista y no cambia las rúbricas ni introduce una nota global.
 
+
+## Dificultad procedural — Bloque 15
+
+El Bloque 15 introduce una clasificación explícita y determinista de dificultad sin cambiar el scoring del usuario ni añadir columnas a Supabase.
+
+La rúbrica `v1` combina solo información disponible en el punto inicial del ejercicio:
+
+- 55% ambigüedad entre la mejor decisión de Lectura y la segunda;
+- 30% complejidad del recorrido visible;
+- 15% ruido de microestructura mediante proporción de mechas.
+
+Bandas internas:
+
+```text
+0–37   → Fácil
+38–65  → Intermedia
+66–100 → Difícil
+```
+
+La UI muestra solo la banda, no el score interno. En `/train` la cabecera del ejercicio se simplifica para mostrar `Escenario sintético` una sola vez y conservar únicamente la dificultad como metadato destacado; se retiran `Activo oculto`, timeframe duplicado, número de sesión y el aviso superior redundante. El futuro revelado no participa en el cálculo y pulsar **Esperar** no cambia retroactivamente la dificultad inicial del escenario.
+
+`/history` reconstruye la dificultad desde `exercise_id + exercise_version`, por lo que puede mostrarla sin añadir una columna nueva ni una migración.
+
+Esta primera calibración es una heurística pedagógica versionada. Queda preparada para que el siguiente selector adaptativo pueda combinar dificultad, skills débiles y exposición reciente sin convertir la dificultad en una etiqueta fija por arquetipo.
+
+No hay migración Supabase en Bloque 15.
+
 ## Selector
 
 Actualmente:
@@ -210,7 +236,7 @@ RLS activo, INSERT no expuesto al cliente, scoring recalculado server-side e ide
 
 ### `/history`
 
-Intentos recientes con decisión, outcome, confianza, Lectura, Plan, Gestión y detalle.
+Intentos recientes con dificultad procedural, decisión, outcome, confianza, Lectura, Plan, Gestión y detalle.
 
 ### `/skills`
 
@@ -320,8 +346,8 @@ Git / snapshot
 
 ## Próximos pasos
 
-1. dificultad procedural explícita;
-2. selección adaptativa por errores/habilidades, dificultad y exposición;
+1. selección adaptativa por errores/habilidades, dificultad y exposición;
+2. entrenamiento adaptativo real;
 3. reto diario;
 4. datos históricos licenciables;
 5. feedback IA sobre scoring determinista.

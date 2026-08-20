@@ -30,6 +30,7 @@ export const metadata: Metadata = {
 const DASHBOARD_SELECT = [
   "id",
   "exercise_id",
+  "exercise_version",
   "exercise_title",
   "timeframe",
   "decision",

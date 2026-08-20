@@ -1,6 +1,10 @@
-
 import Link from "next/link";
 
+import {
+  assessExerciseDifficulty,
+  getExerciseDifficultyLabel,
+} from "@/features/training/difficulty";
+import { resolveTrainingExercise } from "@/features/training/exercises/synthetic-catalog";
 import {
   getDecisionLabel,
   getManagementActionLabel,
@@ -253,6 +257,19 @@ function ManagementDetail({ attempt }: { attempt: TrainingHistoryAttempt }) {
   );
 }
 
+function getAttemptDifficultyLabel(attempt: TrainingHistoryAttempt) {
+  const exercise = resolveTrainingExercise(
+    attempt.exerciseId,
+    attempt.exerciseVersion,
+  );
+
+  if (!exercise) {
+    return null;
+  }
+
+  return getExerciseDifficultyLabel(assessExerciseDifficulty(exercise).level);
+}
+
 function AttemptCard({
   attempt,
   position,
@@ -261,6 +278,7 @@ function AttemptCard({
   position: number;
 }) {
   const createdDate = new Date(attempt.createdAt);
+  const difficultyLabel = getAttemptDifficultyLabel(attempt);
 
   return (
     <details className="group overflow-hidden rounded-3xl border border-app-border bg-app-surface-subtle transition duration-200 open:border-app-border-strong">
@@ -274,6 +292,14 @@ function AttemptCard({
               <span className="rounded-full border border-app-border px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted">
                 {attempt.timeframe}
               </span>
+              {difficultyLabel ? (
+                <span
+                  className="rounded-full border border-app-border px-2.5 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-muted"
+                  title="Dificultad procedural del escenario"
+                >
+                  {difficultyLabel}
+                </span>
+              ) : null}
               <span
                 className={`rounded-full border px-2.5 py-1 text-[9px] font-medium ${getDecisionClasses(
                   attempt.decision,

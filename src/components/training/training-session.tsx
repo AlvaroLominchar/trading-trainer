@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +11,10 @@ import {
   createDecisionStageExercise,
   getDecisionWaitLimit,
 } from "@/features/training/decision-flow";
+import {
+  assessExerciseDifficulty,
+  getExerciseDifficultyLabel,
+} from "@/features/training/difficulty";
 import {
   createSyntheticSelectionSeed,
   selectSyntheticExercise,
@@ -41,7 +44,6 @@ import type {
   DirectionalDecision,
   Exercise,
   ExerciseAttemptResult,
-  ExerciseTimeframe,
   ManagementAction,
   ManagementActionScore,
   ManagementPositionState,
@@ -121,18 +123,6 @@ function formatPrice(value: number) {
 
 function formatPercent(value: number) {
   return `${value.toFixed(2)}%`;
-}
-
-function formatTimeframeLabel(timeframe: ExerciseTimeframe) {
-  if (timeframe.endsWith("m")) {
-    return `${timeframe.slice(0, -1)} min`;
-  }
-
-  if (timeframe.endsWith("h")) {
-    return `${timeframe.slice(0, -1)} h`;
-  }
-
-  return timeframe;
 }
 
 function getPlanRating(score: number) {
@@ -355,6 +345,13 @@ export function TrainingSession({
   const activeExercise = useMemo(
     () => createDecisionStageExercise(exercise, waitCount),
     [exercise, waitCount],
+  );
+  const difficultyAssessment = useMemo(
+    () => assessExerciseDifficulty(exercise),
+    [exercise],
+  );
+  const difficultyLabel = getExerciseDifficultyLabel(
+    difficultyAssessment.level,
   );
   const directionalDecision = isDirectionalDecision(decision) ? decision : null;
   const managementCheckpoints = useMemo(
@@ -895,7 +892,6 @@ export function TrainingSession({
       }
       revealCount={activeExercise.revealCount}
       revealedCount={phase === "result" ? activeExercise.revealCount : revealedCount}
-      sourceLabel={activeExercise.source.label}
       timeframe={activeExercise.timeframe}
       tradePlan={chartTradePlan}
       tradePlanDecision={directionalDecision}
@@ -948,17 +944,11 @@ export function TrainingSession({
 
   return (
     <main className="mx-auto w-full max-w-[1480px] px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
-      <header className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+      <header>
         <div className="max-w-4xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
-              Training room
-            </span>
-            <span className="size-1 rounded-full bg-app-text-muted" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
-              {`Sesión ${String(exerciseNumber).padStart(2, "0")}`}
-            </span>
-          </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-app-text-muted">
+            Training room
+          </span>
 
           <h1 className="mt-3 text-3xl font-medium tracking-[-0.05em] text-app-text sm:text-4xl lg:text-[4rem] lg:leading-none">
             Decide el siguiente tramo.
@@ -967,13 +957,6 @@ export function TrainingSession({
           <p className="mt-3 max-w-2xl text-sm text-app-text-soft sm:text-base">
             Construye tu lectura con la información visible y revela después qué ocurrió.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start rounded-xl border border-app-border-strong bg-app-page-soft/95 px-2.5 py-1.5 xl:self-auto">
-          <span className="size-1.5 rounded-full bg-app-text-soft" />
-          <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-app-text-soft">
-            Desarrollo · Sin dinero real · Datos sintéticos
-          </span>
         </div>
       </header>
 
@@ -1082,10 +1065,12 @@ export function TrainingSession({
                     <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">Revisión del escenario</span>
                     <h3 className="mt-1 text-sm font-medium text-app-text">{exercise.title}</h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-soft">Activo oculto</span>
-                    <span className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-soft">{formatTimeframeLabel(exercise.timeframe)}</span>
-                  </div>
+                  <span
+                    className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-2.5 py-1.5 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-soft"
+                    title={`Dificultad procedural · rúbrica v${difficultyAssessment.version}`}
+                  >
+                    Dificultad · {difficultyLabel}
+                  </span>
                 </div>
                 <div className="mt-3 flex-1">{chart}</div>
               </div>
@@ -1269,12 +1254,13 @@ export function TrainingSession({
                   <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-app-text-muted">Escenario sintético</span>
                   <h2 className="mt-1 text-sm font-medium text-app-text">{exercise.title}</h2>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-soft">Activo oculto</span>
-                  <span className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-soft">{formatTimeframeLabel(exercise.timeframe)}</span>
-                </div>
+                <span
+                  className="rounded-lg border border-app-border-strong bg-app-page-soft/95 px-2.5 py-1.5 font-mono text-[8px] uppercase tracking-[0.12em] text-app-text-soft"
+                  title={`Dificultad procedural · rúbrica v${difficultyAssessment.version}`}
+                >
+                  Dificultad · {difficultyLabel}
+                </span>
               </div>
-              <p className="text-xs leading-5 text-app-text-soft">{exercise.prompt}</p>
             </div>
             {chart}
           </article>
@@ -1288,13 +1274,13 @@ export function TrainingSession({
                     {waitCount > 0 ? `${waitCount} ${waitCount === 1 ? "vela extra" : "velas extra"}` : "Pendiente"}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl border border-app-border bg-app-page-soft p-1">
+                <div className="mt-3 grid grid-cols-3 gap-2">
                   {DECISION_OPTIONS.map((option) => {
                     const isSelected = decision === option.value;
                     return (
                       <button
                         aria-pressed={isSelected}
-                        className={`min-h-10 rounded-lg px-2 text-[11px] font-medium transition ${isSelected ? "bg-app-accent text-app-accent-text" : "text-app-text-soft hover:bg-app-page hover:text-app-text"}`}
+                        className={`min-h-11 rounded-xl border px-2 text-[11px] font-medium transition ${isSelected ? "border-app-accent bg-app-accent text-app-accent-text shadow-[0_0_18px_rgba(255,255,255,0.08)]" : "border-app-border-strong bg-app-page-soft text-app-text-soft hover:border-app-text-muted hover:bg-app-page hover:text-app-text"}`}
                         key={option.value}
                         onClick={() => handleDecisionSelect(option.value)}
                         type="button"
@@ -1307,7 +1293,7 @@ export function TrainingSession({
                 {waitLimit > 0 ? (
                   <div className="mt-2.5">
                     <button
-                      className="flex min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-app-border-strong bg-app-page-soft px-3.5 text-left transition hover:bg-app-page disabled:cursor-not-allowed disabled:opacity-45"
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-app-border-strong bg-app-page-soft px-3.5 text-left transition hover:border-app-text-muted hover:bg-app-page disabled:cursor-not-allowed disabled:opacity-45"
                       disabled={phase !== "deciding" || waitCount >= waitLimit}
                       onClick={handleWait}
                       type="button"
@@ -1370,7 +1356,6 @@ export function TrainingSession({
                 <div className="mt-1.5 flex justify-between font-mono text-[8px] uppercase tracking-[0.1em] text-app-text-muted">
                   <span>50</span><span>100</span>
                 </div>
-                <p className="mt-3 text-[10px] text-app-text-muted">Calibración personal; no modifica la nota.</p>
               </div>
 
               <button

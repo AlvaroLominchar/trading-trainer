@@ -1,4 +1,3 @@
-
 import {
   TRAINING_SKILLS,
   type ManagementAction,
@@ -48,6 +47,7 @@ export type TrainingHistoryManagementAction = {
 export type TrainingHistoryAttempt = {
   id: string;
   exerciseId: string;
+  exerciseVersion: number;
   exerciseTitle: string;
   timeframe: string;
   decision: TrainingDecision;
@@ -277,6 +277,8 @@ export function parseTrainingHistoryAttempt(
     typeof value.id !== "string" ||
     typeof value.exercise_id !== "string" ||
     !value.exercise_id.trim() ||
+    !Number.isInteger(value.exercise_version) ||
+    (value.exercise_version as number) < 1 ||
     typeof value.exercise_title !== "string" ||
     typeof value.timeframe !== "string" ||
     typeof value.decision !== "string" ||
@@ -337,6 +339,7 @@ export function parseTrainingHistoryAttempt(
   return {
     id: value.id,
     exerciseId: value.exercise_id,
+    exerciseVersion: value.exercise_version as number,
     exerciseTitle: value.exercise_title,
     timeframe: value.timeframe,
     decision: value.decision as TrainingDecision,
