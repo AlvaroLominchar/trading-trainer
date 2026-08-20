@@ -29,7 +29,7 @@ Ya existen:
 - navegación privada;
 - entrenamiento jugable;
 - gráfico con futuro oculto;
-- `largo | corto | no operar`, con acción temporal `Esperar` en la implementación candidata del Bloque 14;
+- `largo | corto | no operar`, con acción temporal `Esperar`;
 - confianza;
 - Entrada/Stop/Objetivo;
 - Lectura, Plan y Gestión deterministas e independientes;
@@ -109,6 +109,8 @@ Cada familia nueva tiene seis variantes estructurales deterministas por seed.
 
 El Bloque 13 quedó validado y consolidado en `d1b136d`. La validación final confirmada fue 159/159 tests, lint y build correctos. En el radar de habilidades, los nombres quedaron en 11px y las puntuaciones en 9px.
 
+El Bloque 14 quedó validado funcionalmente con 174/174 tests, lint y build correctos; la migración de `wait_count` / `timing_score` fue aplicada y el flujo `Esperar` fue probado en la web.
+
 ## Skills
 
 Las 10 habilidades confirmadas desde `d1b136d` son:
@@ -134,7 +136,7 @@ El Bloque 13 añadió especialmente:
 - retests;
 - Timing.
 
-La página `/skills` presenta **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`. En el estado confirmado `d1b136d`, **Timing** usa el componente `Entrada` del Plan. El Bloque 14 candidato lo amplía de forma compatible: una espera deliberada también genera evidencia de Timing y, si después existe operación, se combina con la calidad de Entrada. Los intentos anteriores siguen usando Entrada como fallback.
+La página `/skills` presenta **10 habilidades**. Las nueve habilidades de lectura/decisión proceden de `skill_scores`. Desde el Bloque 14, **Timing** amplía de forma compatible el componente `Entrada` del Plan: una espera deliberada también genera evidencia de Timing y, si después existe operación, se combina con la calidad de Entrada. Los intentos anteriores siguen usando Entrada como fallback.
 
 ### Presentación del perfil
 
@@ -147,6 +149,8 @@ En el resultado, la sección **Por qué** explica explícitamente las tres dimen
 - Lectura: por qué la interpretación inicial recibe esa nota.
 - Plan: qué componente entre Entrada, Stop, Objetivo y R:R limita más la puntuación.
 - Gestión: qué checkpoint/acción explica mejor la nota obtenida.
+
+Las tarjetas de Lectura / Plan / Gestión muestran debajo del score únicamente `Fuerte | Defendible | Débil`, sin repetir el nombre de la dimensión.
 
 Las explicaciones ya no repiten scores parciales como `0/100`: la nota está en las métricas superiores y **Por qué** se centra en el motivo pedagógico. Lectura / Plan / Gestión se distinguen mediante pills luminosas neutras. Si el usuario elige `No operar`, las cards de Plan y Gestión muestran `No operaste` y la explicación deja claro por qué no aplican. Esta capa es determinista y no cambia las rúbricas ni introduce una nota global.
 
@@ -162,11 +166,11 @@ Actualmente:
 
 Todavía no selecciona por debilidades del perfil. Eso llegará después de validar catálogo y dificultad.
 
-### Esperar frente a no operar — Bloque 14 candidato
+### Esperar frente a no operar — Bloque 14
 
 `No operar` sigue siendo una decisión terminal. **Esperar** es una acción temporal distinta: revela una vela y devuelve al usuario a Largo / Corto / No operar con el nuevo punto temporal.
 
-La implementación candidata limita la espera a un máximo de tres velas y conserva al menos ocho velas posteriores para evaluación/gestión. El servidor reconstruye el mismo punto de decisión a partir del escenario y `wait_count`; el navegador no envía el score de Timing.
+La implementación limita la espera a un máximo de tres velas y conserva al menos ocho velas posteriores para evaluación/gestión. El servidor reconstruye el mismo punto de decisión a partir del escenario y `wait_count`; el navegador no envía el score de Timing.
 
 Timing se calcula de forma determinista: cada decisión de esperar aporta una observación basada únicamente en la información disponible en ese momento y, si la decisión final es direccional, se añade la nota de Entrada del Plan. El resultado sigue mostrando solo Lectura / Plan / Gestión; Timing vive en el perfil de habilidades, no como cuarta nota oficial.
 
@@ -195,10 +199,10 @@ Migraciones del entrenamiento:
 
 ```text
 supabase/migrations/20260819103000_create_training_attempts.sql
-supabase/migrations/20260819215000_add_training_wait_timing.sql   # candidata Bloque 14
+supabase/migrations/20260819215000_add_training_wait_timing.sql   # aplicada Bloque 14
 ```
 
-La segunda migración añade `wait_count` y `timing_score` sin editar la migración ya aplicada.
+La segunda migración añade `wait_count` y `timing_score` sin editar la migración anterior y ya fue aplicada en Supabase.
 
 RLS activo, INSERT no expuesto al cliente, scoring recalculado server-side e idempotencia mediante UUID + fingerprint.
 
@@ -291,7 +295,7 @@ npm run dev
 Validación completa:
 
 ```powershell
-npm test; npm run lint; npm run build; git diff --check; git status
+npm test; npm run lint; npm run build; git --no-pager diff --check; git status
 ```
 
 No hacer commit/push hasta validar técnica y visualmente el bloque.
@@ -316,14 +320,11 @@ Git / snapshot
 
 ## Próximos pasos
 
-Tras validar el Bloque 14 candidato:
-
-1. cerrar `Esperar` + Timing real y consolidar la migración;
-2. dificultad procedural explícita;
-3. selección adaptativa por errores/habilidades y exposición;
-4. reto diario;
-5. datos históricos licenciables;
-6. feedback IA sobre scoring determinista.
+1. dificultad procedural explícita;
+2. selección adaptativa por errores/habilidades, dificultad y exposición;
+3. reto diario;
+4. datos históricos licenciables;
+5. feedback IA sobre scoring determinista.
 
 ## Seguridad y legal
 

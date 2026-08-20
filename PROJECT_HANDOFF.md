@@ -7,9 +7,9 @@
 >
 > **Contexto estable de negocio:** `PRODUCT_CONTEXT.md`.
 >
-> **Último commit confirmado:** `d1b136d` — `Expand procedural training catalog`.
+> **Base confirmada previa al Bloque 14:** `d1b136d` — `Expand procedural training catalog`.
 >
-> **Estado de este documento:** Bloque 13 cerrado y consolidado. La última validación confirmada antes del commit fue 159/159 tests, lint y build correctos. Este documento acompaña ahora el candidato del Bloque 14 — `Esperar` + Timing real—; hasta validación y commit, `d1b136d` sigue siendo la fuente de verdad confirmada.
+> **Estado de este documento:** Bloque 14 — `Esperar` + Timing real— implementado y validado en el entorno del usuario: 174/174 tests, lint y build correctos; migración aplicada en Supabase y flujo probado en web. Git y el snapshot más reciente gobiernan el hash consolidado actual.
 
 ---
 
@@ -114,7 +114,7 @@ La ruta privada `/train` ofrece:
 
 1. gráfico de velas con futuro oculto;
 2. decisión terminal `long | short | no_trade`;
-3. en el Bloque 14 candidato, acción temporal **Esperar 1 vela** antes de la decisión terminal, sin añadir `wait` a `TrainingDecision`;
+3. acción temporal **Esperar 1 vela** antes de la decisión terminal, sin añadir `wait` a `TrainingDecision`;
 4. confianza 50–100%;
 5. para decisiones direccionales, entrada, stop y objetivo;
 6. revelado progresivo;
@@ -165,6 +165,7 @@ short: target < entry < stop
 - El scoring usa únicamente información visible.
 - `ambiguous` se conserva cuando OHLC no permite inferir orden intrabar.
 - `no_trade` no tiene Plan ni Gestión.
+- En las tarjetas de resultado, el descriptor inferior es solo `Fuerte | Defendible | Débil`; no repite el nombre de la dimensión.
 
 ---
 
@@ -176,7 +177,7 @@ Migración específica aplicada:
 supabase/migrations/20260819103000_create_training_attempts.sql
 ```
 
-Migración candidata del Bloque 14, todavía pendiente de `supabase db push` en el entorno del usuario:
+Migración del Bloque 14 aplicada en Supabase:
 
 ```text
 supabase/migrations/20260819215000_add_training_wait_timing.sql
@@ -378,7 +379,7 @@ Esto no crea una cuarta nota, no cambia scoring y no usa IA. Solo hace legible e
 
 ---
 
-## 10. Bloque 14 candidato — `Esperar` + Timing real
+## 10. Bloque 14 — `Esperar` + Timing real
 
 Distinción de producto:
 
@@ -394,7 +395,7 @@ Arquitectura elegida:
 - el servidor vuelve a reconstruir el mismo stage a partir del ejercicio original + `wait_count`;
 - el navegador nunca envía `timing_score`.
 
-Timing candidato:
+Timing:
 
 - cada espera recibe un score determinista utilizando únicamente la jerarquía Largo/Corto/No operar disponible antes de revelar la siguiente vela;
 - esperar puntúa alto cuando todavía no operar es la mejor o una opción robusta;
@@ -490,7 +491,7 @@ Decisiones validadas:
 ## 16. Validación obligatoria
 
 ```powershell
-npm test; npm run lint; npm run build; git diff --check; git status
+npm test; npm run lint; npm run build; git --no-pager diff --check; git status
 ```
 
 Solo tras confirmación del usuario:
@@ -503,15 +504,12 @@ git add ...; git commit -m "Mensaje descriptivo"; git push origin main; git stat
 
 ## 17. Siguiente evolución recomendada
 
-Si el Bloque 14 candidato queda validado:
-
-1. consolidar `Esperar` + Timing real y su migración;
-2. dificultad procedural explícita;
-3. selección por skills débiles, errores recientes, dificultad y exposición;
-4. entrenamiento adaptativo real;
-5. reto diario;
-6. investigación de datos históricos licenciables;
-7. feedback IA sobre scoring determinista.
+1. dificultad procedural explícita;
+2. selección por skills débiles, errores recientes, dificultad y exposición;
+3. entrenamiento adaptativo real;
+4. reto diario;
+5. investigación de datos históricos licenciables;
+6. feedback IA sobre scoring determinista.
 
 ---
 
